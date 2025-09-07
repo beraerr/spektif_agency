@@ -41,10 +41,12 @@ Organization: spektif-agency
 
 #### **1. Employee Management System - NEW FEATURE**
 **Implementation**: Complete employee creation and management system
-- **Features**: Employee creation, role-based dashboards, card assignments
+- **Features**: Employee creation, role-based dashboards, card assignments, board assignment
 - **Database**: Added surname, position, phone fields to User model
-- **API**: New endpoints for employee management and card assignments
-- **Frontend**: Employee-specific dashboard with real-time data
+- **API**: New endpoints for employee management, card assignments, and board assignment
+- **Frontend**: Employee-specific dashboard with real-time data and templates view
+- **Board Assignment**: Employees only see boards they're explicitly assigned to
+- **Card Members**: Real employee data in card member assignment instead of mock data
 
 #### **2. Field Mapping Mismatches - CRITICAL**
 **Problem**: Frontend/backend field name inconsistency causing API failures
@@ -469,6 +471,42 @@ Response (200):
     "avatar": null
   }
 ]
+```
+
+#### **GET /api/boards/employee**
+```json
+Headers: { "Authorization": "Bearer jwt_token" }
+Query: ?organizationId=uuid
+
+Response (200):
+[
+  {
+    "id": "uuid",
+    "title": "Project Board",
+    "description": "Board description",
+    "organizationId": "uuid",
+    "lists": [...],
+    "members": [...]
+  }
+]
+```
+
+#### **POST /api/boards/:id/assign-user**
+```json
+Headers: { "Authorization": "Bearer jwt_token" }
+Request Body:
+{
+  "userId": "employee_uuid"
+}
+
+Response (201):
+{
+  "id": "uuid",
+  "boardId": "uuid",
+  "userId": "employee_uuid",
+  "role": "USER",
+  "createdAt": "2025-01-09T..."
+}
 ```
 
 ---
