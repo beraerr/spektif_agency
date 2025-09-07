@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Dialog, DialogContent, DialogHeader } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -28,13 +28,16 @@ import {
   Copy,
   ArrowRight,
   MoreHorizontal,
-  Trash2
+  Trash2,
+  Loader2
 } from 'lucide-react'
 import { CardData } from './draggable-card'
 import { DatePickerModal } from './date-picker-modal'
 import { LabelsModal } from './labels-modal'
 import { AttachmentModal } from './attachment-modal'
 import { ChecklistManager } from './checklist-manager'
+import { apiClient } from '@/lib/api'
+import { toast } from 'sonner'
 
 interface CardModalProps {
   card: CardData | null
@@ -54,6 +57,15 @@ interface Comment {
   user: string
   text: string
   timestamp: string
+}
+
+interface AvailableMember {
+  id: string
+  name: string
+  surname: string
+  email: string
+  position: string
+  avatar: string
 }
 
 export function CardModal({ card, isOpen, onClose, onUpdate }: CardModalProps) {
@@ -77,6 +89,30 @@ export function CardModal({ card, isOpen, onClose, onUpdate }: CardModalProps) {
   const [cardDueDate, setCardDueDate] = useState<Date | undefined>(
     card?.dueDate ? new Date(card.dueDate) : undefined
   )
+  const [availableMembers, setAvailableMembers] = useState<AvailableMember[]>([])
+  const [isLoadingMembers, setIsLoadingMembers] = useState(false)
+
+  // Fetch available members when card changes
+  useEffect(() => {
+    const fetchAvailableMembers = async () => {
+      if (!card?.id) return
+      
+      try {
+        setIsLoadingMembers(true)
+        const members = await apiClient.getAvailableMembers(card.id) as AvailableMember[]
+        setAvailableMembers(members)
+      } catch (error) {
+        console.error('Error fetching available members:', error)
+        toast.error('Üyeler yüklenirken hata oluştu')
+      } finally {
+        setIsLoadingMembers(false)
+      }
+    }
+
+    if (card?.id) {
+      fetchAvailableMembers()
+    }
+  }, [card?.id])
 
   if (!card) return null
 
@@ -90,7 +126,6 @@ export function CardModal({ card, isOpen, onClose, onUpdate }: CardModalProps) {
   }
 
   const availableLabels = ['Priority', 'Design', 'Strategy', 'Research', 'Review', 'Important']
-  const availableMembers = ['A', 'E', 'M', 'J', 'S']
 
   const handleAddComment = () => {
     if (newComment.trim()) {
@@ -373,15 +408,35 @@ export function CardModal({ card, isOpen, onClose, onUpdate }: CardModalProps) {
                     <DropdownMenuContent className="w-56">
                       <div className="p-2">
                         <Input placeholder="Search members" className="mb-2" />
-                        <p className="text-xs font-medium text-gray-700 mb-2">Board members</p>
-                        {availableMembers.map((member) => (
-                          <DropdownMenuItem key={member} className="flex items-center space-x-2">
-                            <Avatar className="w-6 h-6">
-                              <AvatarFallback className="bg-blue-500 text-white text-xs">{member}</AvatarFallback>
-                            </Avatar>
-                            <span>Member {member}</span>
-                          </DropdownMenuItem>
-                        ))}
+                        <p className="text-xs font-medium text-gray-700 mb-2">Available members</p>
+                        {isLoadingMembers ? (
+                          <div className="flex items-center justify-center py-4">
+                            <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                            <span className="text-sm text-muted-foreground">Loading...</span>
+                          </div>
+                        ) : availableMembers.length === 0 ? (
+                          <div className="text-center py-4">
+                            <p className="text-sm text-muted-foreground">No available members</p>
+                          </div>
+                        ) : (
+                          availableMembers.map((member) => (
+                            <DropdownMenuItem key={member.id} className="flex items-center space-x-2">
+                              <Avatar className="w-6 h-6">
+                                <AvatarFallback className="bg-blue-500 text-white text-xs">
+                                  {member.name?.charAt(0) || 'U'}
+                                </AvatarFallback>
+                              </Avatar>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-medium truncate">
+                                  {member.name} {member.surname}
+                                </p>
+                                <p className="text-xs text-muted-foreground truncate">
+                                  {member.position || member.email}
+                                </p>
+                              </div>
+                            </DropdownMenuItem>
+                          ))
+                        )}
                       </div>
                     </DropdownMenuContent>
                   </DropdownMenu>
