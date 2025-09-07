@@ -148,4 +148,10 @@ export class CardsController {
     // TODO: Implement due soon logic
     return this.cardsService.findAll(undefined, undefined, req.user.id);
   }
+
+  @Get(':id/available-members')
+  @ApiOperation({ summary: 'Get available members for card assignment' })
+  async getAvailableMembers(@Param('id') id: string, @Req() req) {
+    return this.cardsService.getAvailableMembers(id, req.user.id);
+  }
 }

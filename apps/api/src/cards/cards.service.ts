@@ -673,4 +673,78 @@ export class CardsService {
 
     return unarchivedCard;
   }
+
+  async getAvailableMembers(cardId: string, userId: string) {
+    // Get the card and its board
+    const card = await this.prisma.card.findUnique({
+      where: { id: cardId },
+      include: {
+        list: {
+          include: {
+            board: {
+              include: {
+                organization: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!card) {
+      throw new NotFoundException('Card not found');
+    }
+
+    // Check if user has access to this card's board
+    const boardMember = await this.prisma.boardMember.findUnique({
+      where: {
+        boardId_userId: {
+          boardId: card.list.board.id,
+          userId,
+        },
+      },
+    });
+
+    if (!boardMember) {
+      throw new ForbiddenException('Not authorized to view this card');
+    }
+
+    // Get all members of the organization who are not already assigned to this card
+    const availableMembers = await this.prisma.orgMember.findMany({
+      where: {
+        organizationId: card.list.board.organizationId,
+        role: {
+          in: ['EMPLOYEE', 'ADMIN']
+        },
+        user: {
+          cardMembers: {
+            none: {
+              cardId: cardId
+            }
+          }
+        }
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            surname: true,
+            email: true,
+            position: true,
+            avatar: true,
+          },
+        },
+      },
+    });
+
+    return availableMembers.map(member => ({
+      id: member.user.id,
+      name: member.user.name,
+      surname: member.user.surname,
+      email: member.user.email,
+      position: member.user.position,
+      avatar: member.user.avatar,
+    }));
+  }
 }

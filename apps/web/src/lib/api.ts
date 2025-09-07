@@ -44,6 +44,24 @@ class ApiClient {
     return this.request('/organizations')
   }
 
+  async createEmployee(organizationId: string, data: {
+    email: string
+    name: string
+    surname: string
+    position: string
+    phone: string
+    role: string
+  }) {
+    return this.request(`/organizations/${organizationId}/employees`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async getEmployees(organizationId: string) {
+    return this.request(`/organizations/${organizationId}/employees`)
+  }
+
   // Boards
   async getBoards(organizationId: string) {
     return this.request(`/boards?organizationId=${organizationId}`)
@@ -169,6 +187,10 @@ class ApiClient {
       method: 'POST',
       body: JSON.stringify(data),
     })
+  }
+
+  async getAvailableMembers(cardId: string) {
+    return this.request(`/cards/${cardId}/available-members`)
   }
 
   // Chat

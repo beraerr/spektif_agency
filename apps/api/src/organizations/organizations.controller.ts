@@ -17,6 +17,7 @@ import {
   UpdateOrganizationDto,
   InviteUserDto,
   UpdateUserRoleDto,
+  CreateEmployeeDto,
 } from './dto/organizations.dto';
 
 @ApiTags('Organizations')
@@ -56,6 +57,25 @@ export class OrganizationsController {
     @Req() req,
   ) {
     return this.organizationsService.inviteUser(id, inviteUserDto, req.user.id);
+  }
+
+  @Post(':id/employees')
+  @ApiOperation({ summary: 'Create new employee in organization' })
+  createEmployee(
+    @Param('id') id: string,
+    @Body() createEmployeeDto: CreateEmployeeDto,
+    @Req() req,
+  ) {
+    return this.organizationsService.createEmployee(id, createEmployeeDto, req.user.id);
+  }
+
+  @Get(':id/employees')
+  @ApiOperation({ summary: 'Get all employees in organization' })
+  getEmployees(
+    @Param('id') id: string,
+    @Req() req,
+  ) {
+    return this.organizationsService.getEmployees(id, req.user.id);
   }
 
   @Delete(':id/members/:userId')

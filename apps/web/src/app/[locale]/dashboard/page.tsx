@@ -11,6 +11,8 @@ import { ThemeSwitcher } from '@/components/theme-switcher'
 import { LanguageSwitcher } from '@/components/language-switcher'
 import { apiClient } from '@/lib/api'
 import { toast } from 'sonner'
+import { CreateEmployeeModal } from '@/components/employee/create-employee-modal'
+import { EmployeeDashboard } from '@/components/employee/employee-dashboard'
 
 export default function DashboardPage() {
   const { data: session, status } = useSession()
@@ -40,6 +42,12 @@ export default function DashboardPage() {
   }
 
   const isAdmin = (session as any)?.user?.role === 'ADMIN'
+  const isEmployee = (session as any)?.user?.role === 'EMPLOYEE' || (session as any)?.user?.role === 'ACCOUNTANT'
+
+  // Show employee dashboard for employees
+  if (isEmployee) {
+    return <EmployeeDashboard session={session} />
+  }
 
   return (
     <div className="min-h-screen bg-background flex">
@@ -684,41 +692,59 @@ function TemplatesView({ session }: { session: any }) {
   )
 }
 
+interface Member {
+  id: string
+  name: string
+  surname: string
+  email: string
+  position: string
+  phone: string
+  role: string
+  avatar: string
+  joinDate: string
+}
+
 function MembersView({ session }: { session: any }) {
-  const mockMembers = [
-    {
-      id: 1,
-      name: 'Ahmet Yılmaz',
-      email: 'ahmet@spektif.com',
-      role: 'Proje Yöneticisi',
-      status: 'Aktif',
-      joinDate: '2024-01-15'
-    },
-    {
-      id: 2,
-      name: 'Elif Kaya',
-      email: 'elif@spektif.com',
-      role: 'Tasarımcı',
-      status: 'Aktif',
-      joinDate: '2024-02-01'
-    },
-    {
-      id: 3,
-      name: 'Mehmet Can',
-      email: 'mehmet@spektif.com',
-      role: 'Geliştirici',
-      status: 'Aktif',
-      joinDate: '2024-01-20'
-    },
-    {
-      id: 4,
-      name: 'Ayşe Demir',
-      email: 'ayse@spektif.com',
-      role: 'İçerik Uzmanı',
-      status: 'Çevrimdışı',
-      joinDate: '2024-03-01'
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
+  const [members, setMembers] = useState<Member[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+
+  // Get the first organization ID from session
+  const organizationId = (session as any)?.user?.organizations?.[0]?.id
+
+  // Fetch employees on component mount
+  useEffect(() => {
+    const fetchEmployees = async () => {
+      if (!organizationId) return
+      
+      try {
+        setIsLoading(true)
+        const employees = await apiClient.getEmployees(organizationId) as Member[]
+        setMembers(employees)
+      } catch (error) {
+        console.error('Error fetching employees:', error)
+        toast.error('Çalışanlar yüklenirken hata oluştu')
+      } finally {
+        setIsLoading(false)
+      }
     }
-  ]
+
+    fetchEmployees()
+  }, [organizationId])
+
+  const handleEmployeeCreated = async () => {
+    // Refetch the members list
+    if (!organizationId) return
+    
+    try {
+      const employees = await apiClient.getEmployees(organizationId) as Member[]
+      setMembers(employees)
+      toast.success('Çalışan başarıyla oluşturuldu!')
+    } catch (error) {
+      console.error('Error refetching employees:', error)
+      toast.error('Çalışan listesi güncellenirken hata oluştu')
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -729,53 +755,91 @@ function MembersView({ session }: { session: any }) {
             Workspace'inizdeki tüm üyeleri görüntüleyin ve yönetin
           </p>
         </div>
-        <Button>
+        <Button onClick={() => setIsCreateModalOpen(true)}>
           <UserCheck className="w-4 h-4 mr-2" />
           Üye Davet Et
         </Button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {mockMembers.map((member) => (
-          <Card key={member.id}>
-            <CardHeader className="pb-3">
-              <div className="flex items-center space-x-3">
-                <div className="w-10 h-10 bg-brand-primary/10 rounded-full flex items-center justify-center">
-                  <span className="text-brand-primary font-medium">
-                    {member.name.charAt(0)}
-                  </span>
+      {isLoading ? (
+        <div className="flex items-center justify-center py-8">
+          <div className="flex items-center space-x-2">
+            <Loader2 className="w-5 h-5 animate-spin" />
+            <span>Çalışanlar yükleniyor...</span>
+          </div>
+        </div>
+      ) : members.length === 0 ? (
+        <div className="text-center py-8">
+          <UserCheck className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+          <h3 className="text-lg font-medium mb-2">Henüz çalışan yok</h3>
+          <p className="text-muted-foreground mb-4">
+            İlk çalışanınızı ekleyerek başlayın
+          </p>
+          <Button onClick={() => setIsCreateModalOpen(true)}>
+            <UserCheck className="w-4 h-4 mr-2" />
+            İlk Çalışanı Ekle
+          </Button>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {members.map((member) => (
+            <Card key={member.id}>
+              <CardHeader className="pb-3">
+                <div className="flex items-center space-x-3">
+                  <div className="w-10 h-10 bg-brand-primary/10 rounded-full flex items-center justify-center">
+                    <span className="text-brand-primary font-medium">
+                      {member.name?.charAt(0) || 'U'}
+                    </span>
+                  </div>
+                  <div className="flex-1">
+                    <CardTitle className="text-base">
+                      {member.name} {member.surname}
+                    </CardTitle>
+                    <p className="text-sm text-muted-foreground">{member.email}</p>
+                  </div>
                 </div>
-                <div className="flex-1">
-                  <CardTitle className="text-base">{member.name}</CardTitle>
-                  <p className="text-sm text-muted-foreground">{member.email}</p>
+              </CardHeader>
+              <CardContent className="pt-0">
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-muted-foreground">Pozisyon:</span>
+                    <span className="text-sm font-medium">{member.position || 'Belirtilmemiş'}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-muted-foreground">Rol:</span>
+                    <span className={`text-sm px-2 py-1 rounded-full ${
+                      member.role === 'ADMIN' 
+                        ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+                        : member.role === 'ACCOUNTANT'
+                        ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
+                        : 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                    }`}>
+                      {member.role === 'ADMIN' ? 'Yönetici' : 
+                       member.role === 'ACCOUNTANT' ? 'Muhasebeci' : 'Çalışan'}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-muted-foreground">Katılım:</span>
+                    <span className="text-sm">
+                      {new Date(member.joinDate).toLocaleDateString('tr-TR')}
+                    </span>
+                  </div>
                 </div>
-              </div>
-            </CardHeader>
-            <CardContent className="pt-0">
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Rol:</span>
-                  <span className="text-sm font-medium">{member.role}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Durum:</span>
-                  <span className={`text-sm px-2 py-1 rounded-full ${
-                    member.status === 'Aktif' 
-                      ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' 
-                      : 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200'
-                  }`}>
-                    {member.status}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Katılım:</span>
-                  <span className="text-sm">{member.joinDate}</span>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      {/* Create Employee Modal */}
+      {organizationId && (
+        <CreateEmployeeModal
+          isOpen={isCreateModalOpen}
+          onClose={() => setIsCreateModalOpen(false)}
+          onEmployeeCreated={handleEmployeeCreated}
+          organizationId={organizationId}
+        />
+      )}
     </div>
   )
 }

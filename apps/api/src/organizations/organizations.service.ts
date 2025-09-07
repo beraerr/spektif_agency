@@ -1,6 +1,6 @@
 import { Injectable, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { CreateOrganizationDto, UpdateOrganizationDto, InviteUserDto } from './dto/organizations.dto';
+import { CreateOrganizationDto, UpdateOrganizationDto, InviteUserDto, CreateEmployeeDto } from './dto/organizations.dto';
 
 @Injectable()
 export class OrganizationsService {
@@ -152,6 +152,72 @@ export class OrganizationsService {
     return { message: 'User invited successfully' };
   }
 
+  async createEmployee(organizationId: string, dto: CreateEmployeeDto, adminId: string) {
+    // Check if admin
+    const admin = await this.prisma.orgMember.findUnique({
+      where: {
+        userId_organizationId: {
+          organizationId: organizationId,
+          userId: adminId,
+        },
+      },
+    });
+
+    if (!admin || admin.role !== 'ADMIN') {
+      throw new ForbiddenException('Only admins can create employees');
+    }
+
+    // Check if user already exists
+    const existingUser = await this.prisma.user.findUnique({
+      where: { email: dto.email },
+    });
+
+    if (existingUser) {
+      throw new ForbiddenException('User with this email already exists');
+    }
+
+    // Generate a temporary password (employee will need to change it on first login)
+    const bcrypt = require('bcryptjs');
+    const tempPassword = Math.random().toString(36).slice(-8); // 8 character random password
+    const hashedPassword = await bcrypt.hash(tempPassword, 12);
+
+    // Create new employee user
+    const user = await this.prisma.user.create({
+      data: {
+        email: dto.email,
+        name: dto.name,
+        surname: dto.surname,
+        position: dto.position,
+        phone: dto.phone,
+        password: hashedPassword,
+        role: (dto.role as any) || 'EMPLOYEE',
+      },
+    });
+
+    // Add to organization
+    await this.prisma.orgMember.create({
+      data: {
+        organizationId: organizationId,
+        userId: user.id,
+        role: (dto.role as any) || 'EMPLOYEE',
+      },
+    });
+
+    return {
+      message: 'Employee created successfully',
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        surname: user.surname,
+        position: user.position,
+        phone: user.phone,
+        role: user.role,
+      },
+      tempPassword: tempPassword, // Send temporary password to admin
+    };
+  }
+
   async removeUser(organizationId: string, userId: string, adminId: string) {
     // Check if admin
     const admin = await this.prisma.orgMember.findUnique({
@@ -217,5 +283,63 @@ export class OrganizationsService {
       },
       data: { role: role as any },
     });
+  }
+
+  async getEmployees(organizationId: string, userId: string) {
+    // Check if user is member of organization
+    const orgMember = await this.prisma.orgMember.findUnique({
+      where: {
+        userId_organizationId: {
+          organizationId: organizationId,
+          userId: userId,
+        },
+      },
+    });
+
+    if (!orgMember) {
+      throw new ForbiddenException('Not a member of this organization');
+    }
+
+    // Get all employees in the organization
+    const employees = await this.prisma.orgMember.findMany({
+      where: {
+        organizationId: organizationId,
+        role: {
+          in: ['EMPLOYEE', 'ADMIN']
+        }
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            surname: true,
+            email: true,
+            position: true,
+            phone: true,
+            avatar: true,
+            role: true,
+            createdAt: true,
+          },
+        },
+      },
+      orderBy: {
+        user: {
+          createdAt: 'desc'
+        }
+      }
+    });
+
+    return employees.map(member => ({
+      id: member.user.id,
+      name: member.user.name,
+      surname: member.user.surname,
+      email: member.user.email,
+      position: member.user.position,
+      phone: member.user.phone,
+      role: member.role,
+      avatar: member.user.avatar,
+      joinDate: member.user.createdAt,
+    }));
   }
 }
