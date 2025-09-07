@@ -67,6 +67,17 @@ class ApiClient {
     return this.request(`/boards?organizationId=${organizationId}`)
   }
 
+  async getEmployeeBoards(organizationId: string) {
+    return this.request(`/boards/employee?organizationId=${organizationId}`)
+  }
+
+  async assignUserToBoard(boardId: string, userId: string) {
+    return this.request(`/boards/${boardId}/assign-user`, {
+      method: 'POST',
+      body: JSON.stringify({ userId }),
+    })
+  }
+
   async getBoard(boardId: string) {
     return this.request(`/boards/${boardId}`)
   }

@@ -16,6 +16,16 @@ export class BoardsController {
     return this.boardsService.findAll(organizationId, req.user.id);
   }
 
+  @Get('employee')
+  findEmployeeBoards(@Query('organizationId') organizationId: string, @Req() req) {
+    return this.boardsService.findEmployeeBoards(organizationId, req.user.id);
+  }
+
+  @Post(':id/assign-user')
+  assignUserToBoard(@Param('id') boardId: string, @Body() body: { userId: string }, @Req() req) {
+    return this.boardsService.assignUserToBoard(boardId, body.userId, req.user.id);
+  }
+
   @Get(':id')
   findOne(@Param('id') id: string, @Req() req) {
     return this.boardsService.findOne(id, req.user.id);

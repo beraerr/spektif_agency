@@ -24,14 +24,14 @@ export function EmployeeDashboard({ session }: EmployeeDashboardProps) {
   // Get the first organization ID from session
   const organizationId = (session as any)?.user?.organizations?.[0]?.id
 
-  // Fetch assigned boards
+  // Fetch assigned boards (only boards employee is member of)
   useEffect(() => {
     const fetchBoards = async () => {
       if (!organizationId) return
       
       try {
         setIsLoading(true)
-        const boardsData = await apiClient.getBoards(organizationId) as any[]
+        const boardsData = await apiClient.getEmployeeBoards(organizationId) as any[]
         setBoards(boardsData)
       } catch (error) {
         console.error('Error fetching boards:', error)

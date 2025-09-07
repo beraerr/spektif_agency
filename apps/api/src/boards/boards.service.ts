@@ -165,6 +165,123 @@ export class BoardsService {
     });
   }
 
+  async assignUserToBoard(boardId: string, userId: string, assignedBy: string) {
+    // Check if the user assigning has permission
+    const assignerOrgMember = await this.prisma.orgMember.findFirst({
+      where: {
+        userId: assignedBy,
+        organization: {
+          boards: {
+            some: { id: boardId }
+          }
+        }
+      }
+    });
+
+    if (!assignerOrgMember || assignerOrgMember.role !== 'ADMIN') {
+      throw new ForbiddenException('Only admins can assign users to boards');
+    }
+
+    // Check if user is already assigned to board
+    const existingAssignment = await this.prisma.boardMember.findUnique({
+      where: {
+        boardId_userId: {
+          boardId: boardId,
+          userId: userId,
+        },
+      },
+    });
+
+    if (existingAssignment) {
+      throw new ForbiddenException('User is already assigned to this board');
+    }
+
+    // Assign user to board
+    return this.prisma.boardMember.create({
+      data: {
+        boardId: boardId,
+        userId: userId,
+        role: 'USER',
+      },
+    });
+  }
+
+  async findEmployeeBoards(organizationId: string, userId: string) {
+    // Check if user is member of organization
+    const orgMember = await this.prisma.orgMember.findUnique({
+      where: {
+        userId_organizationId: {
+          organizationId: organizationId,
+          userId: userId,
+        },
+      },
+    });
+
+    if (!orgMember) {
+      throw new ForbiddenException('Not a member of this organization');
+    }
+
+    // For employees, only show boards they are explicitly assigned to as members
+    return this.prisma.board.findMany({
+      where: {
+        organizationId,
+        members: {
+          some: {
+            userId,
+          },
+        },
+      },
+      include: {
+        lists: {
+          include: {
+            cards: {
+              include: {
+                members: {
+                  include: {
+                    user: {
+                      select: {
+                        id: true,
+                        name: true,
+                        surname: true,
+                        email: true,
+                        avatar: true,
+                      },
+                    },
+                  },
+                },
+                _count: {
+                  select: {
+                    comments: true,
+                  },
+                },
+              },
+              orderBy: { position: 'asc' },
+            },
+          },
+          orderBy: { position: 'asc' },
+        },
+        members: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                surname: true,
+                email: true,
+                avatar: true,
+              },
+            },
+          },
+        },
+        _count: {
+          select: {
+            lists: true,
+          },
+        },
+      },
+    });
+  }
+
   async findOne(id: string, userId: string) {
     const board = await this.prisma.board.findUnique({
       where: { id },
