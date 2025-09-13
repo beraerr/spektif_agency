@@ -1,7 +1,7 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 
-interface FileUploadResult {
+export interface FileUploadResult {
   id: string;
   fileName: string;
   originalName: string;
@@ -19,7 +19,7 @@ export class FilesService {
   constructor(private prisma: PrismaService) {}
 
   async uploadFile(
-    file: Express.Multer.File,
+    file: any,
     boardId: string,
     userId: string,
     cardId?: string
@@ -126,7 +126,7 @@ export class FilesService {
     console.log(`🗑️ File ${file.fileName} deleted from storage`);
   }
 
-  private validateFile(file: Express.Multer.File): void {
+  private validateFile(file: any): void {
     const maxSize = 10 * 1024 * 1024; // 10MB
     const allowedTypes = [
       'image/jpeg',
@@ -156,7 +156,7 @@ export class FilesService {
     return lastDot === -1 ? '' : filename.substring(lastDot);
   }
 
-  private async storeFileLocally(file: Express.Multer.File, fileName: string): Promise<string> {
+  private async storeFileLocally(file: any, fileName: string): Promise<string> {
     // For development, store files in public/uploads
     // In production, this would upload to Cloudflare R2 or AWS S3
     const fs = require('fs');

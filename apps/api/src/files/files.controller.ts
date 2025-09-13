@@ -9,11 +9,11 @@ import {
   Body,
   Req,
   BadRequestException,
+  UseGuards,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { FilesService } from './files.service';
+import { FilesService, FileUploadResult } from './files.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { UseGuards } from '@nestjs/common';
 
 @Controller('files')
 @UseGuards(JwtAuthGuard)
@@ -23,11 +23,11 @@ export class FilesController {
   @Post('upload')
   @UseInterceptors(FileInterceptor('file'))
   async uploadFile(
-    @UploadedFile() file: Express.Multer.File,
+    @UploadedFile() file: any,
     @Body('boardId') boardId: string,
     @Body('cardId') cardId: string,
     @Req() req: any,
-  ) {
+  ): Promise<FileUploadResult> {
     if (!file) {
       throw new BadRequestException('No file uploaded');
     }
@@ -40,12 +40,12 @@ export class FilesController {
   }
 
   @Get('board/:boardId')
-  async getBoardFiles(@Param('boardId') boardId: string) {
+  async getBoardFiles(@Param('boardId') boardId: string): Promise<FileUploadResult[]> {
     return this.filesService.getBoardFiles(boardId);
   }
 
   @Get('card/:cardId')
-  async getCardFiles(@Param('cardId') cardId: string) {
+  async getCardFiles(@Param('cardId') cardId: string): Promise<FileUploadResult[]> {
     return this.filesService.getCardFiles(cardId);
   }
 
