@@ -44,7 +44,7 @@ class ApiClient {
 
   // Authentication
   async login(email: string, password: string) {
-    return this.request('/auth/login', {
+    return this.request('/login', {
       method: 'POST',
       body: JSON.stringify({ email, password }),
     })
@@ -75,22 +75,25 @@ class ApiClient {
 
   // Boards
   async getBoards(organizationId: string) {
-    return this.request(`/boards?organizationId=${organizationId}`)
+    return this.request(`/getBoards?userId=${organizationId}`)
   }
 
   async getEmployeeBoards(organizationId: string) {
-    return this.request(`/boards/employee?organizationId=${organizationId}`)
+    return this.request(`/getBoards?userId=${organizationId}`)
   }
 
   async assignUserToBoard(boardId: string, userId: string) {
-    return this.request(`/boards/${boardId}/assign-user`, {
+    return this.request(`/updateBoard`, {
       method: 'POST',
-      body: JSON.stringify({ userId }),
+      body: JSON.stringify({ 
+        id: boardId,
+        members: [userId] // This will need to be updated in Firebase Functions
+      }),
     })
   }
 
   async getBoard(boardId: string) {
-    return this.request(`/boards/${boardId}`)
+    return this.request(`/getBoards?boardId=${boardId}`)
   }
 
   async createBoard(data: {
@@ -99,7 +102,7 @@ class ApiClient {
     description?: string
     color?: string
   }) {
-    return this.request('/boards', {
+    return this.request('/createBoard', {
       method: 'POST',
       body: JSON.stringify(data),
     })
@@ -110,15 +113,22 @@ class ApiClient {
     description: string
     color: string
   }>) {
-    return this.request(`/boards/${boardId}`, {
-      method: 'PATCH',
-      body: JSON.stringify(data),
+    return this.request('/updateBoard', {
+      method: 'POST',
+      body: JSON.stringify({
+        id: boardId,
+        ...data
+      }),
     })
   }
 
   async deleteBoard(boardId: string) {
-    return this.request(`/boards/${boardId}`, {
-      method: 'DELETE',
+    return this.request('/updateBoard', {
+      method: 'POST',
+      body: JSON.stringify({
+        id: boardId,
+        deleted: true
+      }),
     })
   }
 
@@ -127,7 +137,7 @@ class ApiClient {
     boardId: string
     title: string
   }) {
-    return this.request('/boards/lists', {
+    return this.request('/createList', {
       method: 'POST',
       body: JSON.stringify(data),
     })
@@ -137,22 +147,32 @@ class ApiClient {
     title: string
     position: number
   }>) {
-    return this.request(`/boards/lists/${listId}`, {
-      method: 'PATCH',
-      body: JSON.stringify(data),
+    return this.request('/updateList', {
+      method: 'POST',
+      body: JSON.stringify({
+        id: listId,
+        ...data
+      }),
     })
   }
 
   async deleteList(listId: string) {
-    return this.request(`/boards/lists/${listId}`, {
-      method: 'DELETE',
+    return this.request('/updateList', {
+      method: 'POST',
+      body: JSON.stringify({
+        id: listId,
+        deleted: true
+      }),
     })
   }
 
   async reorderLists(boardId: string, listOrders: { id: string; position: number }[]) {
-    return this.request(`/boards/${boardId}/reorder-lists`, {
+    return this.request('/updateList', {
       method: 'POST',
-      body: JSON.stringify({ listOrders }),
+      body: JSON.stringify({ 
+        boardId,
+        listOrders 
+      }),
     })
   }
 
@@ -167,7 +187,7 @@ class ApiClient {
     if (filters?.boardId) params.append('boardId', filters.boardId)
     if (filters?.userId) params.append('userId', filters.userId)
 
-    return this.request(`/cards?${params.toString()}`)
+    return this.request(`/getCards?${params.toString()}`)
   }
 
   async createCard(data: {
@@ -176,7 +196,7 @@ class ApiClient {
     description?: string
     dueDate?: string
   }) {
-    return this.request('/cards', {
+    return this.request('/createCard', {
       method: 'POST',
       body: JSON.stringify(data),
     })
@@ -189,15 +209,22 @@ class ApiClient {
     listId: string
     position: number
   }>) {
-    return this.request(`/cards/${cardId}`, {
-      method: 'PATCH',
-      body: JSON.stringify(data),
+    return this.request('/updateCard', {
+      method: 'POST',
+      body: JSON.stringify({
+        id: cardId,
+        ...data
+      }),
     })
   }
 
   async deleteCard(cardId: string) {
-    return this.request(`/cards/${cardId}`, {
-      method: 'DELETE',
+    return this.request('/updateCard', {
+      method: 'POST',
+      body: JSON.stringify({
+        id: cardId,
+        deleted: true
+      }),
     })
   }
 
@@ -205,9 +232,12 @@ class ApiClient {
     listId: string
     position: number
   }) {
-    return this.request(`/cards/${cardId}/move`, {
+    return this.request('/updateCard', {
       method: 'POST',
-      body: JSON.stringify(data),
+      body: JSON.stringify({
+        id: cardId,
+        ...data
+      }),
     })
   }
 
