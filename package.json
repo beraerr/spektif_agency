@@ -15,15 +15,23 @@
     "db:generate": "turbo db:generate",
     "db:seed": "cd apps/api && bun run db:seed",
     "deploy": "vercel --prod",
-    "deploy:preview": "vercel"
+    "deploy:preview": "vercel",
+    "firebase:init": "firebase init",
+    "firebase:login": "firebase login",
+    "firebase:deploy": "firebase deploy",
+    "firebase:emulators": "firebase emulators:start",
+    "firebase:migrate": "node scripts/migrate-to-firebase.js"
   },
   "devDependencies": {
     "@turbo/gen": "^1.13.0",
-    "turbo": "^1.13.0",
-    "prettier": "^3.0.0"
+    "prettier": "^3.0.0",
+    "turbo": "^1.13.0"
   },
   "engines": {
     "node": ">=18"
   },
-  "packageManager": "bun@1.0.0"
+  "packageManager": "bun@1.0.0",
+  "dependencies": {
+    "@dataconnect/generated": "file:src/dataconnect-generated"
+  }
 }

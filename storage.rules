@@ -1,0 +1,26 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Users can upload files to their own folder
+    match /users/{userId}/{allPaths=**} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // Board files: Board members can read/write
+    match /boards/{boardId}/{allPaths=**} {
+      allow read, write: if request.auth != null 
+        && request.auth.uid in firestore.get(/databases/(default)/documents/boards/$(boardId)).data.members;
+    }
+    
+    // Card attachments: Board members can read/write
+    match /cards/{cardId}/{allPaths=**} {
+      allow read, write: if request.auth != null 
+        && request.auth.uid in firestore.get(/databases/(default)/documents/boards/$(cardId)).data.members;
+    }
+    
+    // Public files (for now, allow authenticated users)
+    match /public/{allPaths=**} {
+      allow read, write: if request.auth != null;
+    }
+  }
+}
