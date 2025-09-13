@@ -8,7 +8,10 @@ export function DebugInfo() {
 
   useEffect(() => {
     const checkApiStatus = async () => {
-      const url = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'
+      // Use Firebase Functions in production, local API in development
+      const firebaseUrl = process.env.NEXT_PUBLIC_FIREBASE_FUNCTIONS_URL || 'https://us-central1-spektif-agency-final-prod.cloudfunctions.net'
+      const localUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'
+      const url = process.env.NODE_ENV === 'production' ? firebaseUrl : localUrl
       setApiUrl(url)
       
       try {
