@@ -18,9 +18,27 @@ export function useBoard(boardId: string) {
 
     try {
       setLoading(true)
+      
+      // Check cache first
+      const cacheKey = `board_${boardId}`
+      const cached = localStorage.getItem(cacheKey)
+      const cacheTime = localStorage.getItem(`${cacheKey}_time`)
+      
+      // Use cache if less than 30 seconds old
+      if (cached && cacheTime && Date.now() - parseInt(cacheTime) < 30000) {
+        setBoard(JSON.parse(cached))
+        setError(null)
+        setLoading(false)
+        return
+      }
+      
       const data = await apiClient.getBoard(boardId) as Board
       setBoard(data)
       setError(null)
+      
+      // Cache the data
+      localStorage.setItem(cacheKey, JSON.stringify(data))
+      localStorage.setItem(`${cacheKey}_time`, Date.now().toString())
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch board')
     } finally {

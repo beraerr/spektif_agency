@@ -20,6 +20,7 @@ import {
 import { DragDropBoard } from '@/components/board/drag-drop-board'
 import { ListData, CardData } from '@/components/board/droppable-list'
 import { useBoard } from '@/hooks/use-board'
+import { useRealtimeBoard } from '@/hooks/use-realtime'
 import { toast } from 'sonner'
 import { CardModal } from '@/components/board/card-modal'
 import { ThemeSwitcher } from '@/components/theme-switcher'
@@ -50,6 +51,14 @@ export default function BoardPage() {
     updateListsOrder 
   } = useBoard(boardId)
 
+  // Real-time updates
+  const { 
+    isConnected, 
+    emitCardUpdated, 
+    emitCardMoved, 
+    emitListCreated 
+  } = useRealtimeBoard(boardId)
+
   const [selectedCard, setSelectedCard] = useState<CardData | null>(null)
   const [isCardModalOpen, setIsCardModalOpen] = useState(false)
   const [boardBackground, setBoardBackground] = useState<string>('')
@@ -63,6 +72,29 @@ export default function BoardPage() {
       setBoardBackground(backgrounds[boardIdStr] || '')
     }
   }, [boardId])
+
+  // Real-time event listeners
+  useEffect(() => {
+    const handleRealtimeCardUpdate = (event: CustomEvent) => {
+      console.log('🔄 Real-time card update received:', event.detail)
+      // Refresh board data when real-time updates are received
+      window.location.reload() // Simple refresh for now
+    }
+
+    const handleRealtimeListUpdate = (event: CustomEvent) => {
+      console.log('📝 Real-time list update received:', event.detail)
+      // Refresh board data when real-time updates are received
+      window.location.reload() // Simple refresh for now
+    }
+
+    window.addEventListener('realtime-card-updated', handleRealtimeCardUpdate as EventListener)
+    window.addEventListener('realtime-list-updated', handleRealtimeListUpdate as EventListener)
+
+    return () => {
+      window.removeEventListener('realtime-card-updated', handleRealtimeCardUpdate as EventListener)
+      window.removeEventListener('realtime-list-updated', handleRealtimeListUpdate as EventListener)
+    }
+  }, [])
 
   // Convert board data to ListData format for drag-drop component
   const lists: ListData[] = board?.lists?.map(list => ({
@@ -109,8 +141,20 @@ export default function BoardPage() {
     try {
       await updateCard(updatedCard.id, {
         title: updatedCard.title,
-        description: updatedCard.description
+        description: updatedCard.description,
+        dueDate: updatedCard.dueDate
       })
+      
+      // Emit real-time update
+      emitCardUpdated({
+        cardId: updatedCard.id,
+        updates: {
+          title: updatedCard.title,
+          description: updatedCard.description,
+          dueDate: updatedCard.dueDate
+        }
+      })
+      
       toast.success('Card updated successfully!')
     } catch (error) {
       console.error('Failed to update card:', error)
