@@ -1,6 +1,16 @@
 import { getSession } from 'next-auth/react'
 
+// Firebase Functions URL - deployed and ready!
+const FIREBASE_FUNCTIONS_URL = process.env.NEXT_PUBLIC_FIREBASE_FUNCTIONS_URL || 'https://us-central1-spektif-agency-final-prod.cloudfunctions.net'
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'
+
+// Use Firebase Functions in production, local API in development
+const getApiUrl = () => {
+  if (process.env.NODE_ENV === 'production') {
+    return FIREBASE_FUNCTIONS_URL
+  }
+  return API_BASE_URL
+}
 
 class ApiClient {
   private async getAuthHeaders() {
@@ -15,8 +25,9 @@ class ApiClient {
 
   private async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
     const headers = await this.getAuthHeaders()
+    const apiUrl = getApiUrl()
     
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+    const response = await fetch(`${apiUrl}${endpoint}`, {
       ...options,
       headers: {
         ...headers,
