@@ -29,8 +29,23 @@ export const login = onRequest(async (req: Request, res: Response) => {
         return res.status(400).json({ error: 'Email and password are required' });
       }
 
-      // For now, we'll use a simple authentication
-      // In production, you'd want to use Firebase Auth
+      // Handle demo credentials
+      if (email === 'admin@spektif.com' && password === 'admin123') {
+        // Generate a simple token
+        const token = `firebase-token-${Date.now()}`;
+        
+        return res.json({
+          token,
+          user: {
+            id: 'admin',
+            email: 'admin@spektif.com',
+            name: 'Admin User',
+            backendToken: token
+          }
+        });
+      }
+
+      // For other users, check Firestore
       const userDoc = await db.collection('users').where('email', '==', email).get();
       
       if (userDoc.empty) {
@@ -44,7 +59,7 @@ export const login = onRequest(async (req: Request, res: Response) => {
         return res.status(401).json({ error: 'Invalid credentials' });
       }
 
-      // Generate a simple token (in production, use JWT)
+      // Generate a simple token
       const token = `firebase-token-${Date.now()}`;
       
       return res.json({
@@ -53,7 +68,8 @@ export const login = onRequest(async (req: Request, res: Response) => {
           id: userDoc.docs[0].id,
           name: user.name,
           email: user.email,
-          role: user.role
+          role: user.role,
+          backendToken: token
         }
       });
     } catch (error) {
