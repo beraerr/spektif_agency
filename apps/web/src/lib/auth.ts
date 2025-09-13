@@ -27,10 +27,12 @@ export const authOptions: NextAuthOptions = {
         }
 
         try {
-          // Call our backend API - use process.env or fallback for server-side vs client-side
-          const apiUrl = process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'
+          // Use Firebase Functions in production, local API in development
+          const firebaseUrl = process.env.NEXT_PUBLIC_FIREBASE_FUNCTIONS_URL || 'https://us-central1-spektif-agency-final-prod.cloudfunctions.net'
+          const localUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'
+          const apiUrl = process.env.NODE_ENV === 'production' ? firebaseUrl : localUrl
           console.log('🔐 NextAuth trying to login with API URL:', apiUrl)
-          const response = await fetch(`${apiUrl}/auth/login`, {
+          const response = await fetch(`${apiUrl}/login`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -54,8 +56,9 @@ export const authOptions: NextAuthOptions = {
               name: data.user.name,
               image: null,
               // Store additional data
-              organizations: data.organizations,
-              token: data.token
+              organizations: data.organizations || [],
+              token: data.token,
+              backendToken: data.user.backendToken || data.token
             }
           }
 
