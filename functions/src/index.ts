@@ -414,6 +414,129 @@ export const uploadFile = onRequest(async (req: Request, res: Response) => {
 });
 
 // ============================================================================
+// CARDS ENDPOINTS
+// ============================================================================
+
+export const getCards = onRequest(async (req: Request, res: Response) => {
+  return cors(req, res, async () => {
+    try {
+      const { listId, boardId, userId } = req.query;
+
+      let query: any = db.collection('cards');
+
+      if (listId) {
+        query = query.where('listId', '==', listId);
+      } else if (boardId) {
+        query = query.where('boardId', '==', boardId);
+      } else if (userId) {
+        query = query.where('assignedTo', 'array-contains', userId);
+      }
+
+      const cardsSnapshot = await query.get();
+      const cards = cardsSnapshot.docs.map((doc: any) => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+
+      return res.json(cards);
+    } catch (error) {
+      logger.error('Get cards error:', error);
+      return res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+});
+
+// ============================================================================
+// ORGANIZATIONS ENDPOINTS
+// ============================================================================
+
+export const getOrganizations = onRequest(async (req: Request, res: Response) => {
+  return cors(req, res, async () => {
+    try {
+      const { userId } = req.query;
+
+      if (!userId) {
+        return res.status(400).json({ error: 'User ID is required' });
+      }
+
+      const orgsSnapshot = await db.collection('organizations')
+        .where('members', 'array-contains', userId)
+        .get();
+
+      const organizations = orgsSnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+
+      return res.json(organizations);
+    } catch (error) {
+      logger.error('Get organizations error:', error);
+      return res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+});
+
+export const getEmployees = onRequest(async (req: Request, res: Response) => {
+  return cors(req, res, async () => {
+    try {
+      const { organizationId } = req.query;
+
+      if (!organizationId) {
+        return res.status(400).json({ error: 'Organization ID is required' });
+      }
+
+      const employeesSnapshot = await db.collection('users')
+        .where('organizationId', '==', organizationId)
+        .get();
+
+      const employees = employeesSnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+
+      return res.json(employees);
+    } catch (error) {
+      logger.error('Get employees error:', error);
+      return res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+});
+
+export const createEmployee = onRequest(async (req: Request, res: Response) => {
+  return cors(req, res, async () => {
+    try {
+      const { organizationId, email, name, surname, position, phone, role } = req.body;
+
+      if (!organizationId || !email || !name || !surname) {
+        return res.status(400).json({ error: 'Missing required fields' });
+      }
+
+      const employeeData = {
+        email,
+        name,
+        surname,
+        position: position || '',
+        phone: phone || '',
+        role: role || 'employee',
+        organizationId,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      };
+
+      const employeeRef = await db.collection('users').add(employeeData);
+
+      return res.json({
+        id: employeeRef.id,
+        ...employeeData
+      });
+    } catch (error) {
+      logger.error('Create employee error:', error);
+      return res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+});
+
+// ============================================================================
 // HEALTH CHECK
 // ============================================================================
 
