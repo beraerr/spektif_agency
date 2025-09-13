@@ -9,6 +9,8 @@ import { CardsModule } from './cards/cards.module';
 import { ChatModule } from './chat/chat.module';
 import { CalendarModule } from './calendar/calendar.module';
 import { BillingModule } from './billing/billing.module';
+import { WebSocketModule } from './websocket/websocket.module';
+import { FilesModule } from './files/files.module';
 import { HealthController } from './health/health.controller';
 
 @Module({
@@ -30,6 +32,8 @@ import { HealthController } from './health/health.controller';
     ChatModule,
     CalendarModule,
     BillingModule,
+    WebSocketModule,
+    FilesModule,
   ],
   controllers: [HealthController],
 })

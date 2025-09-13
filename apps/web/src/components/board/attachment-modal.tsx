@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState, useRef } from 'react'
+import { useSession } from 'next-auth/react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -24,6 +25,7 @@ interface RecentItem {
 }
 
 export function AttachmentModal({ isOpen, onClose, onUpload, onAddLink }: AttachmentModalProps) {
+  const { data: session } = useSession()
   const [activeTab, setActiveTab] = useState<'upload' | 'link'>('upload')
   const [linkUrl, setLinkUrl] = useState('')
   const [displayText, setDisplayText] = useState('')
@@ -73,11 +75,34 @@ export function AttachmentModal({ isOpen, onClose, onUpload, onAddLink }: Attach
     }
   ]
 
-  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
     if (file) {
-      onUpload(file, displayText)
-      onClose()
+      try {
+        // Upload file to backend
+        const formData = new FormData()
+        formData.append('file', file)
+        formData.append('boardId', 'current-board-id') // This should be passed as prop
+        formData.append('cardId', 'current-card-id') // This should be passed as prop
+        
+        const response = await fetch('/api/files/upload', {
+          method: 'POST',
+          body: formData,
+          headers: {
+            'Authorization': `Bearer ${(session as any)?.backendToken}`
+          }
+        })
+        
+        if (response.ok) {
+          const result = await response.json()
+          onUpload(file, displayText || result.originalName)
+          onClose()
+        } else {
+          console.error('File upload failed')
+        }
+      } catch (error) {
+        console.error('File upload error:', error)
+      }
     }
   }
 
@@ -220,6 +245,8 @@ export function AttachmentModal({ isOpen, onClose, onUpload, onAddLink }: Attach
     </Dialog>
   )
 }
+
+
 
 
 

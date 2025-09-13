@@ -54,6 +54,7 @@ model User {
   sentMessages     Message[]
   notifications    Notification[]
   activities       Activity[]
+  uploadedFiles    File[]
 
   @@map("users")
 }
@@ -105,6 +106,7 @@ model Board {
   lists        List[]
   members      BoardMember[]
   activities   Activity[]
+  files        File[]
 
   @@map("boards")
 }
@@ -155,6 +157,7 @@ model Card {
   comments Comment[]
   members  CardMember[]
   activities Activity[]
+  files    File[]
 
   @@map("cards")
 }
@@ -321,4 +324,23 @@ model Payment {
   subscription Subscription? @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
 
   @@map("payments")
+}
+
+model File {
+  id           String   @id @default(cuid())
+  fileName     String
+  originalName String
+  url          String
+  size         Int
+  mimeType     String
+  boardId      String
+  cardId       String?
+  uploadedBy   String
+  createdAt    DateTime @default(now())
+
+  board    Board @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  card     Card? @relation(fields: [cardId], references: [id], onDelete: SetNull)
+  uploader User  @relation(fields: [uploadedBy], references: [id], onDelete: Cascade)
+
+  @@map("files")
 }
