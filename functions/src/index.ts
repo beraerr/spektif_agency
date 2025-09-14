@@ -2,16 +2,56 @@ import { setGlobalOptions } from "firebase-functions";
 import { onRequest } from "firebase-functions/v2/https";
 import * as logger from "firebase-functions/logger";
 import * as admin from "firebase-admin";
+import { getFirestore } from "firebase-admin/firestore";
 import { Request, Response } from "express";
 
-// Initialize Firebase Admin
-admin.initializeApp();
+// Initialize Firebase Admin with NEW service account key
+admin.initializeApp({
+  credential: admin.credential.cert({
+    projectId: 'spektif-agency-final-prod',
+    clientEmail: 'firebase-adminsdk-fbsvc@spektif-agency-final-prod.iam.gserviceaccount.com',
+    privateKey: `-----BEGIN PRIVATE KEY-----
+MIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQCs8r1TuFgPUnWS
+bDMS+RPXptVVCo0gLOdH6yAHrJJmM//pLbkHCEORh0qpq6xsJEWWOW25cKB25pKS
+crPiTKDn9HBi9z3Ifyki73lWpThpaqkHVbXUo1pBzVBI34gGbWmNMMTIxssOM7qg
+6wcubv0VLyQT3jgwaIqjEWNZO+9fbM4Vec57ahzmqbGoLg5K7Cw6lB8fLB/WbXVF
+dSL65jA1495LziA+X5Dum+gnz8gXl9aFw0oR+X4bOfn3qnfU9uCJayeKSs+LFwHD
+ZkqmyQL9Rw+3fT8emq4GBSkC+Pl+rViJv5qJ2BJGYTmUEOJUiQ6hblZym0qVhUQt
+jAQpvk7bAgMBAAECggEAPdZC5HLGpZ/Voudl8ZQ2SIaBw3jU0drMTRYgKy5EYB+a
+kjyDaiTFx/xoMTdNHJNxgA+DkGjZLvotEQjLEZBVfeoT3wbIw+3XfwLBzz2e6G43
+BoTaUS+g/2MSICQwZh/rvAxiZ+lQRAEx6wRt2mfbvJ3Q1/u9+mz+mOSIMakw4tyV
+bbFzqTHg7CinMNb5AaqfOLLZORW/lOXF6/heyXULYAbhBJblMXQTPxkISNfppr79
+np9obhUieKU5vzN132oWqWp/1vrUUs3a2slmgiHnxMlvyURayxcgVkBkmeUCAaRO
+pzz6f1ZFRnkwatHFAhd8Y3+l032R+J5EW8q9xDOiUQKBgQDVJgt7o4UxKCKJFF2b
+fSBs5TPrVXjCBEd7wG2sR2qqaRDkrjVhlB0v2c7XkP+AkSqK+h2r1BjnqxzRIuBg
+xl0pD1JGWj5zud/4GKo+z2vh+p0pXgbvqmT6+tx5+HfY3E/rOeErSo8/AOLaBrAI
+lYkjJYyxiWlWH0ioUQIv0sYoKwKBgQDPt7stVhJxrcjaJwKquNLuitjw1bO7DDoq
+gphb7miICJH1vNI9bfHl5metON9y5Ua1oEBN+dG+1eT9Y4WxfRtzQXieOSAGmzSP
+v3TceFmbUbFfJ+Y8foS0TSHpb/2wnlzr1XmF84yprstsSQYnM0vdfTmMcsZWsod6
+ZGDz86rsEQKBgQC3T8fyZliHRTgmYmB6+Crp3FlBnLmFSr7bnEv2LVl8A24m7fg0
+2ngbjhvI4wgKX06SRbc87uUYYN4gsvj74b1/MZEVtkkdqA8JxNStvh/PMoT1bctT
+VV0RSKxTLbCMzjThXV7cp3v4uF9hGP1N9KUDmCifC0mPaspHD5xs2r3XDwKBgFv3
+9IchOe9dS7XTWenvBW2aymzvobFqu4JA6mahy2SXrtCH9uo9+MGa30KiEMVVYJZg
+Srh7qPN+zvGmE/a+9t10GoyrrFNgesg+s+Y93ybW59rC1rzoI6eVEzPBYyjFJU1B
+6pl1eU1T2DuspW3L14ZMwKM/2jNevn9hXFAHDiGRAoGBAJ5sJ9Kvr+bLwHfNbpuz
+ICi9xDtZ+gsqtVBApk0KQcc2/lFAbAAZHOMwNPKf6FwknvMn0oOiUbFFQlcRlefF
+zXTekLc5OoQp1sb328BntujGvwSXcbFvPwN1hXQ5Cennmfhp5yi6y8uHk0bHq5O/
+qZ1DMDWJHOVMxQiKssl7NHIM
+-----END PRIVATE KEY-----`,
+  }),
+  storageBucket: 'spektif-agency-final-prod.firebasestorage.app',
+});
 
-const db = admin.firestore();
+// CLEAN SETUP: USE SPEKTIF DATABASE ONLY
+const db = getFirestore(admin.app(), "spektif");
+console.log("🔥 CLEAN SETUP: USING SPEKTIF DATABASE");
 const storage = admin.storage();
 
-// Set global options for cost control
-setGlobalOptions({ maxInstances: 10 });
+// Set global options for cost control and region
+setGlobalOptions({ 
+  maxInstances: 10,
+  region: 'europe-west4'
+});
 
 // CORS middleware
 const cors = require('cors')({ origin: true });
@@ -547,5 +587,235 @@ export const health = onRequest(async (req: Request, res: Response) => {
       timestamp: new Date().toISOString(),
       service: 'spektif-agency-firebase-functions'
     });
+  });
+});
+
+export const testFirestore = onRequest(async (req: Request, res: Response) => {
+  return cors(req, res, async () => {
+    try {
+      console.log('Testing Firestore connection...');
+      console.log('Database instance configured');
+      
+      // Try to create a test document first
+      await db.collection('test').doc('connection').set({
+        timestamp: new Date(),
+        status: 'connected'
+      });
+      
+      const testDoc = await db.collection('test').doc('connection').get();
+      console.log('✅ Firestore connection successful');
+      
+      // Get the actual database ID (hardcoded since we know it's spektif)
+      const actualDatabaseId = 'spektif';
+      
+      return res.json({
+        success: true,
+        message: 'Firestore connection successful',
+        exists: testDoc.exists,
+        data: testDoc.data(),
+        projectId: 'spektif-agency-final-prod',
+        actualDatabaseId: actualDatabaseId,
+        configuredDatabaseId: 'spektif',
+        dbObject: typeof db
+      });
+    } catch (error) {
+      console.error('❌ Firestore connection failed:', error);
+      return res.status(500).json({
+        success: false,
+        error: 'Firestore connection failed',
+        details: error.message,
+        projectId: 'spektif-agency-final-prod',
+        databaseId: 'spektif'
+      });
+    }
+  });
+});
+
+// ============================================================================
+// SEED DATABASE
+// ============================================================================
+
+export const seedDatabase = onRequest(async (req: Request, res: Response) => {
+  return cors(req, res, async () => {
+    try {
+      console.log('🌱 Starting database seeding...');
+
+      // Test basic connection first
+      console.log('Testing Firestore connection...');
+      const testDoc = await db.collection('test').doc('connection').get();
+      console.log('✅ Firestore connection successful');
+
+      // Create admin user
+      const adminUser = {
+        id: 'admin',
+        email: 'admin@spektif.com',
+        name: 'Admin User',
+        role: 'ADMIN',
+        organizationId: 'spektif-agency',
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp()
+      };
+
+      await db.collection('users').doc('admin').set(adminUser);
+      console.log('✅ Admin user created');
+
+      // Create organization
+      const organization = {
+        id: 'spektif-agency',
+        name: 'Spektif Agency',
+        members: ['admin'],
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp()
+      };
+
+      await db.collection('organizations').doc('spektif-agency').set(organization);
+      console.log('✅ Organization created');
+
+      // Create sample board
+      const board = {
+        id: 'sample-board-1',
+        title: 'Proje Yönetimi',
+        description: 'Ana proje yönetim panosu',
+        organizationId: 'spektif-agency',
+        members: ['admin'],
+        color: '#3B82F6',
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp()
+      };
+
+      await db.collection('boards').doc('sample-board-1').set(board);
+      console.log('✅ Sample board created');
+
+      // Create sample lists
+      const lists = [
+        {
+          id: 'list-1',
+          title: 'Yapılacaklar',
+          position: 0,
+          boardId: 'sample-board-1',
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+          updatedAt: admin.firestore.FieldValue.serverTimestamp()
+        },
+        {
+          id: 'list-2',
+          title: 'Devam Eden',
+          position: 1,
+          boardId: 'sample-board-1',
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+          updatedAt: admin.firestore.FieldValue.serverTimestamp()
+        },
+        {
+          id: 'list-3',
+          title: 'Tamamlandı',
+          position: 2,
+          boardId: 'sample-board-1',
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+          updatedAt: admin.firestore.FieldValue.serverTimestamp()
+        }
+      ];
+
+      for (const list of lists) {
+        await db.collection('boards').doc('sample-board-1').collection('lists').doc(list.id).set(list);
+      }
+      console.log('✅ Sample lists created');
+
+      // Create sample cards
+      const cards = [
+        {
+          id: 'card-1',
+          title: 'Web sitesi tasarımı',
+          description: 'Ana sayfa ve iç sayfaların tasarımı',
+          listId: 'list-1',
+          boardId: 'sample-board-1',
+          position: 0,
+          members: ['admin'],
+          dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+          updatedAt: admin.firestore.FieldValue.serverTimestamp()
+        },
+        {
+          id: 'card-2',
+          title: 'Veritabanı kurulumu',
+          description: 'Firebase Firestore veritabanı yapılandırması',
+          listId: 'list-2',
+          boardId: 'sample-board-1',
+          position: 0,
+          members: ['admin'],
+          dueDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(),
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+          updatedAt: admin.firestore.FieldValue.serverTimestamp()
+        },
+        {
+          id: 'card-3',
+          title: 'Test ve deploy',
+          description: 'Uygulamanın test edilmesi ve production\'a deploy edilmesi',
+          listId: 'list-3',
+          boardId: 'sample-board-1',
+          position: 0,
+          members: ['admin'],
+          dueDate: new Date().toISOString(),
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+          updatedAt: admin.firestore.FieldValue.serverTimestamp()
+        }
+      ];
+
+      for (const card of cards) {
+        await db.collection('boards').doc('sample-board-1').collection('cards').doc(card.id).set(card);
+      }
+      console.log('✅ Sample cards created');
+
+      // Create sample employees
+      const employees = [
+        {
+          id: 'emp-1',
+          email: 'john.doe@spektif.com',
+          name: 'John',
+          surname: 'Doe',
+          position: 'Frontend Developer',
+          phone: '+90 555 123 4567',
+          role: 'employee',
+          organizationId: 'spektif-agency',
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+          updatedAt: admin.firestore.FieldValue.serverTimestamp()
+        },
+        {
+          id: 'emp-2',
+          email: 'jane.smith@spektif.com',
+          name: 'Jane',
+          surname: 'Smith',
+          position: 'Backend Developer',
+          phone: '+90 555 987 6543',
+          role: 'employee',
+          organizationId: 'spektif-agency',
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+          updatedAt: admin.firestore.FieldValue.serverTimestamp()
+        }
+      ];
+
+      for (const employee of employees) {
+        await db.collection('users').doc(employee.id).set(employee);
+      }
+      console.log('✅ Sample employees created');
+
+      return res.json({
+        success: true,
+        message: 'Database seeded successfully!',
+        data: {
+          users: 3, // admin + 2 employees
+          organizations: 1,
+          boards: 1,
+          lists: 3,
+          cards: 3
+        }
+      });
+
+    } catch (error) {
+      logger.error('Seed database error:', error);
+      return res.status(500).json({ 
+        success: false,
+        error: 'Failed to seed database',
+        details: error.message 
+      });
+    }
   });
 });

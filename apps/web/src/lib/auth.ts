@@ -28,7 +28,7 @@ export const authOptions: NextAuthOptions = {
 
         try {
           // Use Firebase Functions in production, local API in development
-          const firebaseUrl = process.env.NEXT_PUBLIC_FIREBASE_FUNCTIONS_URL || 'https://us-central1-spektif-agency-final-prod.cloudfunctions.net'
+          const firebaseUrl = process.env.NEXT_PUBLIC_FIREBASE_FUNCTIONS_URL || 'https://europe-west4-spektif-agency-final-prod.cloudfunctions.net'
           const localUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'
           const apiUrl = process.env.NODE_ENV === 'production' ? firebaseUrl : localUrl
           console.log('🔐 NextAuth trying to login with API URL:', apiUrl)

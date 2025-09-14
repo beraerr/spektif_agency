@@ -1,7 +1,7 @@
 import { getSession } from 'next-auth/react'
 
-// Firebase Functions URL - deployed and ready!
-const FIREBASE_FUNCTIONS_URL = process.env.NEXT_PUBLIC_FIREBASE_FUNCTIONS_URL || 'https://us-central1-spektif-agency-final-prod.cloudfunctions.net'
+// Firebase Functions URL - deployed in europe-west4 for Turkey optimization
+const FIREBASE_FUNCTIONS_URL = process.env.NEXT_PUBLIC_FIREBASE_FUNCTIONS_URL || 'https://europe-west4-spektif-agency-final-prod.cloudfunctions.net'
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'
 
 // Use Firebase Functions in production, local API in development
