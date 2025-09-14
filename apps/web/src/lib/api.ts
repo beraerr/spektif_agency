@@ -51,7 +51,10 @@ class ApiClient {
   }
 
   // Organizations
-  async getOrganizations() {
+  async getOrganizations(userId?: string) {
+    if (userId) {
+      return this.request(`/getOrganizations?userId=${userId}`)
+    }
     return this.request('/getOrganizations')
   }
 
@@ -74,6 +77,46 @@ class ApiClient {
 
   async getEmployees(organizationId: string) {
     return this.request(`/getEmployees?organizationId=${organizationId}`)
+  }
+
+  // Clients
+  async getClients(organizationId: string) {
+    return this.request(`/getClients?organizationId=${organizationId}`)
+  }
+
+  async createClient(organizationId: string, data: {
+    name: string
+    email: string
+    phone?: string
+    company?: string
+    address?: string
+    notes?: string
+  }) {
+    return this.request('/createClient', {
+      method: 'POST',
+      body: JSON.stringify({
+        organizationId,
+        ...data
+      }),
+    })
+  }
+
+  async updateClient(clientId: string, data: Partial<{
+    name: string
+    email: string
+    phone: string
+    company: string
+    address: string
+    notes: string
+    status: string
+  }>) {
+    return this.request('/updateClient', {
+      method: 'POST',
+      body: JSON.stringify({
+        id: clientId,
+        ...data
+      }),
+    })
   }
 
   // Boards
@@ -244,45 +287,10 @@ class ApiClient {
     })
   }
 
-  async getAvailableMembers(cardId: string) {
-    return this.request(`/cards/${cardId}/available-members`)
-  }
-
-  // Chat
-  async getConversations() {
-    return this.request('/conversations')
-  }
-
-  async createConversation(data: {
-    type: 'DM' | 'GROUP' | 'CARD_THREAD'
-    title?: string
-    cardId?: string
-    participantIds: string[]
-  }) {
-    return this.request('/conversations', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    })
-  }
-
-  async getMessages(conversationId: string, limit?: number, offset?: number) {
-    const params = new URLSearchParams()
-    if (limit) params.append('limit', limit.toString())
-    if (offset) params.append('offset', offset.toString())
-
-    return this.request(`/conversations/${conversationId}/messages?${params.toString()}`)
-  }
-
-  async sendMessage(data: {
-    conversationId: string
-    text: string
-    replyToId?: string
-  }) {
-    return this.request('/messages', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    })
-  }
+  // NOTE: Chat and available members endpoints not implemented yet
+  // TODO: Implement when needed:
+  // - getAvailableMembers(cardId)
+  // - Chat system (getConversations, createConversation, getMessages, sendMessage)
 }
 
 export const apiClient = new ApiClient()

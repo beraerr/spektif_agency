@@ -845,32 +845,59 @@ function MembersView({ session }: { session: any }) {
 }
 
 function ClientsView({ session }: { session: any }) {
-  const mockClients = [
-    {
-      id: 1,
-      name: 'TechCorp Ltd.',
-      contact: 'info@techcorp.com',
-      projects: 3,
-      status: 'Aktif',
-      lastProject: '2024-08-20'
-    },
-    {
-      id: 2,
-      name: 'StartupXYZ',
-      contact: 'hello@startupxyz.com',
-      projects: 1,
-      status: 'Aktif',
-      lastProject: '2024-08-15'
-    },
-    {
-      id: 3,
-      name: 'RetailPlus',
-      contact: 'contact@retailplus.com',
-      projects: 5,
-      status: 'Tamamlandı',
-      lastProject: '2024-07-30'
+  const [clients, setClients] = useState<any[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [isCreating, setIsCreating] = useState(false)
+  const organizationId = 'spektif-agency' // Same as employees section
+
+  useEffect(() => {
+    loadClients()
+  }, [])
+
+  const loadClients = async () => {
+    try {
+      setIsLoading(true)
+      const clientsData = await apiClient.getClients(organizationId) as any[]
+      setClients(clientsData)
+    } catch (error) {
+      console.error('Error loading clients:', error)
+      toast.error('Müşteriler yüklenemedi!')
+    } finally {
+      setIsLoading(false)
     }
-  ]
+  }
+
+  const handleCreateClient = async () => {
+    try {
+      setIsCreating(true)
+      await apiClient.createClient(organizationId, {
+        name: "Yeni Müşteri",
+        email: "musteri@example.com",
+        phone: "+90 555 123 4567",
+        company: "Şirket Adı",
+        address: "Adres bilgisi",
+        notes: "Müşteri notları"
+      })
+      toast.success('Yeni müşteri oluşturuldu!')
+      loadClients() // Reload the list
+    } catch (error) {
+      console.error('Error creating client:', error)
+      toast.error('Müşteri oluşturulamadı!')
+    } finally {
+      setIsCreating(false)
+    }
+  }
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+          <p className="mt-2 text-sm text-muted-foreground">Müşteriler yükleniyor...</p>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6">
@@ -881,51 +908,67 @@ function ClientsView({ session }: { session: any }) {
             Müşteri bilgilerini ve projelerini yönetin
           </p>
         </div>
-        <Button>
+        <Button onClick={handleCreateClient} disabled={isCreating}>
           <Building2 className="w-4 h-4 mr-2" />
-          Yeni Müşteri
+          {isCreating ? 'Oluşturuluyor...' : 'Yeni Müşteri'}
         </Button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {mockClients.map((client) => (
-          <Card key={client.id}>
-            <CardHeader className="pb-3">
-              <div className="flex items-center space-x-3">
-                <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center">
-                  <Building2 className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+      {clients.length === 0 ? (
+        <div className="text-center py-12">
+          <Building2 className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+          <h3 className="text-lg font-semibold mb-2">Henüz müşteri yok</h3>
+          <p className="text-muted-foreground mb-4">İlk müşterinizi ekleyerek başlayın</p>
+          <Button onClick={handleCreateClient} disabled={isCreating}>
+            <Building2 className="w-4 h-4 mr-2" />
+            {isCreating ? 'Oluşturuluyor...' : 'İlk Müşteri Ekle'}
+          </Button>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {clients.map((client) => (
+            <Card key={client.id}>
+              <CardHeader className="pb-3">
+                <div className="flex items-center space-x-3">
+                  <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center">
+                    <Building2 className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                  </div>
+                  <div className="flex-1">
+                    <CardTitle className="text-base">{client.name}</CardTitle>
+                    <p className="text-sm text-muted-foreground">{client.email}</p>
+                  </div>
                 </div>
-                <div className="flex-1">
-                  <CardTitle className="text-base">{client.name}</CardTitle>
-                  <p className="text-sm text-muted-foreground">{client.contact}</p>
+              </CardHeader>
+              <CardContent className="pt-0">
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-muted-foreground">Şirket:</span>
+                    <span className="text-sm font-medium">{client.company || 'Belirtilmemiş'}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-muted-foreground">Telefon:</span>
+                    <span className="text-sm">{client.phone || '-'}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-muted-foreground">Durum:</span>
+                    <span className={`text-sm px-2 py-1 rounded-full ${
+                      client.status === 'Aktif' 
+                        ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' 
+                        : 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200'
+                    }`}>
+                      {client.status}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-muted-foreground">Projeler:</span>
+                    <span className="text-sm font-medium">{client.projects}</span>
+                  </div>
                 </div>
-              </div>
-            </CardHeader>
-            <CardContent className="pt-0">
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Projeler:</span>
-                  <span className="text-sm font-medium">{client.projects}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Durum:</span>
-                  <span className={`text-sm px-2 py-1 rounded-full ${
-                    client.status === 'Aktif' 
-                      ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' 
-                      : 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200'
-                  }`}>
-                    {client.status}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Son Proje:</span>
-                  <span className="text-sm">{client.lastProject}</span>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
     </div>
   )
 }

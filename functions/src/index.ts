@@ -597,6 +597,115 @@ export const createEmployee = onRequest(
 });
 
 // ============================================================================
+// CLIENT MANAGEMENT
+// ============================================================================
+
+export const getClients = onRequest(
+  { 
+    cors: true,
+    invoker: "public"
+  },
+  async (req: Request, res: Response) => {
+  return cors(req, res, async () => {
+    try {
+      const { organizationId } = req.query;
+      
+      if (!organizationId) {
+        res.status(400).json({ error: 'organizationId is required' });
+        return;
+      }
+
+      const clientsSnapshot = await db.collection('clients')
+        .where('organizationId', '==', organizationId)
+        .where('deleted', '!=', true)
+        .get();
+
+      const clients = clientsSnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+
+      res.json(clients);
+    } catch (error) {
+      console.error('Error fetching clients:', error);
+      res.status(500).json({ error: 'Failed to fetch clients' });
+    }
+  });
+});
+
+export const createClient = onRequest(
+  { 
+    cors: true,
+    invoker: "public"
+  },
+  async (req: Request, res: Response) => {
+  return cors(req, res, async () => {
+    try {
+      const { organizationId, name, email, phone, company, address, notes } = req.body;
+      
+      if (!organizationId || !name || !email) {
+        res.status(400).json({ error: 'organizationId, name, and email are required' });
+        return;
+      }
+
+      const clientData = {
+        organizationId,
+        name,
+        email,
+        phone: phone || '',
+        company: company || '',
+        address: address || '',
+        notes: notes || '',
+        status: 'Aktif',
+        projects: 0,
+        lastProject: 'Henüz proje yok',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        deleted: false
+      };
+
+      const docRef = await db.collection('clients').add(clientData);
+      
+      res.status(201).json({
+        id: docRef.id,
+        ...clientData
+      });
+    } catch (error) {
+      console.error('Error creating client:', error);
+      res.status(500).json({ error: 'Failed to create client' });
+    }
+  });
+});
+
+export const updateClient = onRequest(
+  { 
+    cors: true,
+    invoker: "public"
+  },
+  async (req: Request, res: Response) => {
+  return cors(req, res, async () => {
+    try {
+      const { id, ...updateData } = req.body;
+      
+      if (!id) {
+        res.status(400).json({ error: 'Client ID is required' });
+        return;
+      }
+
+      const clientRef = db.collection('clients').doc(id);
+      await clientRef.update({
+        ...updateData,
+        updatedAt: new Date().toISOString()
+      });
+
+      res.json({ success: true, message: 'Client updated successfully' });
+    } catch (error) {
+      console.error('Error updating client:', error);
+      res.status(500).json({ error: 'Failed to update client' });
+    }
+  });
+});
+
 // HEALTH CHECK
 // ============================================================================
 

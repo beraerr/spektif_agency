@@ -99,8 +99,10 @@ export function CardModal({ card, isOpen, onClose, onUpdate }: CardModalProps) {
       
       try {
         setIsLoadingMembers(true)
-        const members = await apiClient.getAvailableMembers(card.id) as AvailableMember[]
-        setAvailableMembers(members)
+        // TODO: Implement getAvailableMembers endpoint
+        // const members = await apiClient.getAvailableMembers(card.id) as AvailableMember[]
+        // setAvailableMembers(members)
+        setAvailableMembers([])
       } catch (error) {
         console.error('Error fetching available members:', error)
         toast.error('Üyeler yüklenirken hata oluştu')
