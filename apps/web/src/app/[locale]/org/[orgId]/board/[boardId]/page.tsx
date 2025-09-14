@@ -48,7 +48,8 @@ export default function BoardPage() {
     updateCard, 
     moveCard, 
     deleteCard, 
-    updateListsOrder 
+    updateListsOrder,
+    refetch: fetchBoard
   } = useBoard(boardId)
 
   // Real-time updates
@@ -70,6 +71,22 @@ export default function BoardPage() {
       const backgrounds = JSON.parse(saved) as Record<string, string>
       const boardIdStr = Array.isArray(boardId) ? boardId[0] : boardId
       setBoardBackground(backgrounds[boardIdStr] || '')
+    }
+  }, [boardId])
+
+  // Polling for updates
+  useEffect(() => {
+    const handlePollForUpdates = (event: CustomEvent) => {
+      if (event.detail?.boardId === boardId) {
+        // Refetch board data
+        fetchBoard()
+      }
+    }
+
+    window.addEventListener('poll-for-updates', handlePollForUpdates as EventListener)
+
+    return () => {
+      window.removeEventListener('poll-for-updates', handlePollForUpdates as EventListener)
     }
   }, [boardId])
 

@@ -1184,22 +1184,28 @@ export const moveCard = onRequest(
   async (req: Request, res: Response) => {
     return cors(req, res, async () => {
       try {
-        const { cardId, listId, position } = req.body;
+        const { id: cardId, listId, position, boardId } = req.body;
 
         if (!cardId || !listId || position === undefined) {
           return res.status(400).json({ error: 'Card ID, List ID, and position are required' });
         }
 
-        // Find the card
-        const cardQuery = await db.collectionGroup('cards')
-          .where('__name__', '==', cardId)
-          .get();
+        // Find the card by searching all boards
+        const boardsSnapshot = await db.collection('boards').get();
+        let cardRef = null;
+        
+        for (const boardDoc of boardsSnapshot.docs) {
+          const cardDoc = await boardDoc.ref.collection('cards').doc(cardId).get();
+          if (cardDoc.exists) {
+            cardRef = cardDoc.ref;
+            break;
+          }
+        }
 
-        if (cardQuery.empty) {
+        if (!cardRef) {
           return res.status(404).json({ error: 'Card not found' });
         }
 
-        const cardRef = cardQuery.docs[0].ref;
         await cardRef.update({
           listId,
           position,

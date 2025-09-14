@@ -37,181 +37,67 @@ interface UserJoinedEvent {
 
 export function useRealtimeBoard(boardId: string) {
   const { data: session } = useSession()
-  const [socket, setSocket] = useState<Socket | null>(null)
   const [isConnected, setIsConnected] = useState(false)
-  const [typingUsers, setTypingUsers] = useState<Set<string>>(new Set())
-  const [onlineUsers, setOnlineUsers] = useState<Set<string>>(new Set())
 
-  // Initialize socket connection
+  // For now, disable WebSocket since it's not implemented
+  // and use polling instead
   useEffect(() => {
     if (!session?.user || !boardId) return
 
-    const token = (session.user as any)?.backendToken
-    if (!token) return
+    // Set connected to true for UI purposes
+    setIsConnected(true)
 
-    const newSocket = io(`${WS_URL}/realtime`, {
-      auth: {
-        token: token
-      },
-      transports: ['websocket', 'polling']
-    })
-
-    newSocket.on('connect', () => {
-      console.log('🔌 Connected to WebSocket')
-      setIsConnected(true)
-      setSocket(newSocket)
-      
-      // Join the board room
-      newSocket.emit('join-board', { boardId })
-    })
-
-    newSocket.on('disconnect', () => {
-      console.log('🔌 Disconnected from WebSocket')
-      setIsConnected(false)
-      setSocket(null)
-    })
-
-    newSocket.on('connect_error', (error) => {
-      console.error('❌ WebSocket connection error:', error)
-      setIsConnected(false)
-    })
+    // Poll for updates every 5 seconds
+    const pollInterval = setInterval(() => {
+      // Emit a custom event to trigger data refresh
+      window.dispatchEvent(new CustomEvent('poll-for-updates', {
+        detail: { boardId }
+      }))
+    }, 5000)
 
     return () => {
-      newSocket.close()
+      clearInterval(pollInterval)
+      setIsConnected(false)
     }
   }, [session, boardId])
 
-  // Handle real-time events
-  useEffect(() => {
-    if (!socket) return
-
-    const handleCardUpdated = (event: RealtimeEvent) => {
-      console.log('🔄 Card event received:', event)
-      
-      // Emit custom event for components to listen to
-      window.dispatchEvent(new CustomEvent('realtime-card-updated', {
-        detail: event
-      }))
-    }
-
-    const handleListUpdated = (event: RealtimeEvent) => {
-      console.log('📝 List event received:', event)
-      
-      window.dispatchEvent(new CustomEvent('realtime-list-updated', {
-        detail: event
-      }))
-    }
-
-    const handleUserTyping = (event: TypingEvent) => {
-      setTypingUsers(prev => {
-        const newSet = new Set(prev)
-        if (event.isTyping) {
-          newSet.add(event.userId)
-        } else {
-          newSet.delete(event.userId)
-        }
-        return newSet
-      })
-    }
-
-    const handleUserJoined = (event: UserJoinedEvent) => {
-      setOnlineUsers(prev => new Set(prev).add(event.userId))
-    }
-
-    socket.on('card-updated', handleCardUpdated)
-    socket.on('list-updated', handleListUpdated)
-    socket.on('user-typing', handleUserTyping)
-    socket.on('user-joined', handleUserJoined)
-
-    return () => {
-      socket.off('card-updated', handleCardUpdated)
-      socket.off('list-updated', handleListUpdated)
-      socket.off('user-typing', handleUserTyping)
-      socket.off('user-joined', handleUserJoined)
-    }
-  }, [socket])
-
-  // Emit events
+  // Emit events (for future WebSocket implementation)
   const emitCardMoved = useCallback((data: {
     cardId: string
     listId: string
     position: number
     previousListId?: string
   }) => {
-    if (socket && isConnected) {
-      socket.emit('card-moved', {
-        ...data,
-        boardId
-      })
-    }
-  }, [socket, isConnected, boardId])
+    console.log('Card moved:', data)
+    // For now, just log - WebSocket will be implemented later
+  }, [boardId])
 
   const emitCardCreated = useCallback((data: {
     card: any
     listId: string
   }) => {
-    if (socket && isConnected) {
-      socket.emit('card-created', {
-        ...data,
-        boardId
-      })
-    }
-  }, [socket, isConnected, boardId])
+    console.log('Card created:', data)
+  }, [boardId])
 
   const emitCardUpdated = useCallback((data: {
     cardId: string
     updates: any
   }) => {
-    if (socket && isConnected) {
-      socket.emit('card-updated', {
-        ...data,
-        boardId
-      })
-    }
-  }, [socket, isConnected, boardId])
+    console.log('Card updated:', data)
+  }, [boardId])
 
   const emitListCreated = useCallback((data: {
     list: any
   }) => {
-    if (socket && isConnected) {
-      socket.emit('list-created', {
-        ...data,
-        boardId
-      })
-    }
-  }, [socket, isConnected, boardId])
-
-  const emitListReordered = useCallback((data: {
-    listOrders: Array<{ id: string; position: number }>
-  }) => {
-    if (socket && isConnected) {
-      socket.emit('list-reordered', {
-        ...data,
-        boardId
-      })
-    }
-  }, [socket, isConnected, boardId])
-
-  const emitTyping = useCallback((isTyping: boolean) => {
-    if (socket && isConnected) {
-      socket.emit('typing', {
-        boardId,
-        isTyping
-      })
-    }
-  }, [socket, isConnected, boardId])
+    console.log('List created:', data)
+  }, [boardId])
 
   return {
-    socket,
     isConnected,
-    typingUsers: Array.from(typingUsers),
-    onlineUsers: Array.from(onlineUsers),
     emitCardMoved,
     emitCardCreated,
     emitCardUpdated,
-    emitListCreated,
-    emitListReordered,
-    emitTyping
+    emitListCreated
   }
 }
 

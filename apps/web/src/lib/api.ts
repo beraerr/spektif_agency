@@ -274,8 +274,9 @@ class ApiClient {
   async moveCard(cardId: string, data: {
     listId: string
     position: number
+    boardId: string
   }) {
-    return this.request('/updateCard', {
+    return this.request('/moveCard', {
       method: 'POST',
       body: JSON.stringify({
         id: cardId,

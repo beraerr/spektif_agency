@@ -171,7 +171,8 @@ export function useBoard(boardId: string) {
     try {
       await apiClient.moveCard(cardId, {
         listId: targetListId,
-        position: newOrder
+        position: newOrder,
+        boardId: board.id
       })
       
       // Optimistically update the UI
