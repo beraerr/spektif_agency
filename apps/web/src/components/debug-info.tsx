@@ -8,10 +8,8 @@ export function DebugInfo() {
 
   useEffect(() => {
     const checkApiStatus = async () => {
-      // Use Firebase Functions in production, local API in development
-      const firebaseUrl = process.env.NEXT_PUBLIC_FIREBASE_FUNCTIONS_URL || 'https://europe-west4-spektif-agency-final-prod.cloudfunctions.net'
-      const localUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'
-      const url = process.env.NODE_ENV === 'production' ? firebaseUrl : localUrl
+      // Always use Firebase Functions - no more dual API system
+      const url = process.env.NEXT_PUBLIC_FIREBASE_FUNCTIONS_URL || 'https://europe-west4-spektif-agency-final-prod.cloudfunctions.net'
       setApiUrl(url)
       
       try {

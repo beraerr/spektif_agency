@@ -34,7 +34,7 @@ export default function BoardsPage() {
         
         // If no token, get one using demo credentials
         if (!token) {
-          const loginResponse = await fetch(`http://localhost:3001/api/auth/login`, {
+          const loginResponse = await fetch(`https://europe-west4-spektif-agency-final-prod.cloudfunctions.net/auth/login`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ email: 'admin@spektif.com', password: 'admin123' }),
@@ -47,7 +47,7 @@ export default function BoardsPage() {
         }
 
         if (token) {
-          const response = await fetch(`http://localhost:3001/api/boards?organizationId=${orgId}`, {
+          const response = await fetch(`https://europe-west4-spektif-agency-final-prod.cloudfunctions.net/boards?organizationId=${orgId}`, {
             headers: {
               'Authorization': `Bearer ${token}`,
               'Content-Type': 'application/json',

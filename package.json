@@ -11,9 +11,7 @@
     "lint": "turbo lint",
     "test": "turbo test",
     "format": "prettier --write \"**/*.{ts,tsx,md}\"",
-    "db:push": "turbo db:push",
-    "db:generate": "turbo db:generate",
-    "db:seed": "cd apps/api && bun run db:seed",
+    "db:seed": "firebase functions:shell --only seedDatabase",
     "deploy": "vercel --prod",
     "deploy:preview": "vercel",
     "firebase:init": "firebase init",
@@ -31,7 +29,5 @@
     "node": ">=18"
   },
   "packageManager": "bun@1.0.0",
-  "dependencies": {
-    "@dataconnect/generated": "file:src/dataconnect-generated"
-  }
+  "dependencies": {}
 }

@@ -41,7 +41,7 @@ const useCardEvents = (orgId: string, boardId?: string) => {
       let token = (session as any)?.user?.backendToken
       
       if (!token) {
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'
+        const apiUrl = process.env.NEXT_PUBLIC_FIREBASE_FUNCTIONS_URL || 'https://europe-west4-spektif-agency-final-prod.cloudfunctions.net'
         const loginResponse = await fetch(`${apiUrl}/auth/login`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -55,7 +55,7 @@ const useCardEvents = (orgId: string, boardId?: string) => {
       }
 
       if (boardId) {
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'
+        const apiUrl = process.env.NEXT_PUBLIC_FIREBASE_FUNCTIONS_URL || 'https://europe-west4-spektif-agency-final-prod.cloudfunctions.net'
         const cardsResponse = await fetch(`${apiUrl}/cards?boardId=${boardId}`, {
           headers: {
             'Authorization': `Bearer ${token}`,

@@ -4,7 +4,8 @@ import { useEffect, useState, useCallback } from 'react'
 import { useSession } from 'next-auth/react'
 import { io, Socket } from 'socket.io-client'
 
-const WS_URL = process.env.NEXT_PUBLIC_WS_URL || 'http://localhost:3001'
+// WebSocket not implemented in Firebase Functions yet
+const WS_URL = process.env.NEXT_PUBLIC_WS_URL || 'wss://europe-west4-spektif-agency-final-prod.cloudfunctions.net'
 
 interface RealtimeEvent {
   type: 'moved' | 'created' | 'updated' | 'deleted' | 'reordered'

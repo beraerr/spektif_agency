@@ -42,7 +42,7 @@ const useBoardChat = (boardId: string) => {
         let token = (session as any)?.user?.backendToken
         
         if (!token) {
-          const loginResponse = await fetch(`http://localhost:3001/api/auth/login`, {
+          const loginResponse = await fetch(`https://europe-west4-spektif-agency-final-prod.cloudfunctions.net/auth/login`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ email: 'admin@spektif.com', password: 'admin123' }),
@@ -55,7 +55,7 @@ const useBoardChat = (boardId: string) => {
         }
 
         // Fetch chat messages
-        const messagesResponse = await fetch(`http://localhost:3001/api/chat/board/${boardId}`, {
+        const messagesResponse = await fetch(`https://europe-west4-spektif-agency-final-prod.cloudfunctions.net/chat/board/${boardId}`, {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json',
@@ -196,7 +196,7 @@ export default function BoardChatPage() {
       let token = (session as any)?.user?.backendToken
       
       if (!token) {
-        const loginResponse = await fetch(`http://localhost:3001/api/auth/login`, {
+        const loginResponse = await fetch(`https://europe-west4-spektif-agency-final-prod.cloudfunctions.net/auth/login`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ email: 'admin@spektif.com', password: 'admin123' }),
@@ -209,7 +209,7 @@ export default function BoardChatPage() {
       }
 
       // Send to backend
-      const response = await fetch(`http://localhost:3001/api/chat/board/${boardId}`, {
+      const response = await fetch(`https://europe-west4-spektif-agency-final-prod.cloudfunctions.net/chat/board/${boardId}`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,

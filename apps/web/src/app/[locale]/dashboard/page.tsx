@@ -392,7 +392,7 @@ function TemplatesView({ session }: { session: any }) {
         console.log('Backend token:', token)
         
         let response
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'
+        const apiUrl = process.env.NEXT_PUBLIC_FIREBASE_FUNCTIONS_URL || 'https://europe-west4-spektif-agency-final-prod.cloudfunctions.net'
         console.log('🔗 API URL:', apiUrl)
         console.log('🌍 Environment:', process.env.NODE_ENV)
         
@@ -406,7 +406,7 @@ function TemplatesView({ session }: { session: any }) {
           })
         } else {
           // Fallback: Try to login with demo credentials and get token
-          const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'
+          const apiUrl = process.env.NEXT_PUBLIC_FIREBASE_FUNCTIONS_URL || 'https://europe-west4-spektif-agency-final-prod.cloudfunctions.net'
           const loginResponse = await fetch(`${apiUrl}/auth/login`, {
             method: 'POST',
             headers: {
