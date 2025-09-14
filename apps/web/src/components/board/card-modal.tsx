@@ -519,7 +519,12 @@ export function CardModal({ card, isOpen, onClose, onUpdate }: CardModalProps) {
           onClose={() => setShowDatePicker(false)}
           onSave={(date, reminder) => {
             setCardDueDate(date)
-            // Update card due date logic here
+            // Update card with new due date
+            const updatedCard = {
+              ...card,
+              dueDate: date.toISOString()
+            }
+            onUpdate(updatedCard)
           }}
           currentDate={cardDueDate}
         />

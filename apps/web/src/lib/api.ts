@@ -209,7 +209,7 @@ class ApiClient {
   }
 
   async reorderLists(boardId: string, listOrders: { id: string; position: number }[]) {
-    return this.request('/updateList', {
+    return this.request('/reorderLists', {
       method: 'POST',
       body: JSON.stringify({ 
         boardId,
@@ -279,7 +279,7 @@ class ApiClient {
     return this.request('/moveCard', {
       method: 'POST',
       body: JSON.stringify({
-        id: cardId,
+        cardId: cardId,
         ...data
       }),
     })

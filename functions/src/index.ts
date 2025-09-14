@@ -85,6 +85,7 @@ export const login = onRequest(
             id: 'admin',
             email: 'admin@spektif.com',
             name: 'Admin User',
+            role: 'ADMIN',
             backendToken: token
           }
         });
