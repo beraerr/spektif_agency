@@ -417,7 +417,7 @@ function TemplatesView({ session }: { session: any }) {
         
         if (token) {
           // Try with authentication first
-          response = await fetch(`${apiUrl}/boards?organizationId=spektif`, {
+          response = await fetch(`${apiUrl}/getBoards?userId=admin`, {
             headers: {
               'Authorization': `Bearer ${token}`,
               'Content-Type': 'application/json',
@@ -439,7 +439,7 @@ function TemplatesView({ session }: { session: any }) {
           
           if (loginResponse.ok) {
             const loginData = await loginResponse.json()
-            response = await fetch(`${apiUrl}/getBoards?userId=spektif`, {
+            response = await fetch(`${apiUrl}/getBoards?userId=admin`, {
               headers: {
                 'Authorization': `Bearer ${loginData.token}`,
                 'Content-Type': 'application/json',

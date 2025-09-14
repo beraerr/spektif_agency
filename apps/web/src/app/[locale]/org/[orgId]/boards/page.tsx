@@ -48,7 +48,7 @@ export default function BoardsPage() {
         }
 
         if (token) {
-          const response = await fetch(`https://europe-west4-spektif-agency-final-prod.cloudfunctions.net/boards?organizationId=${orgId}`, {
+          const response = await fetch(`https://europe-west4-spektif-agency-final-prod.cloudfunctions.net/getBoards?userId=admin`, {
             headers: {
               'Authorization': `Bearer ${token}`,
               'Content-Type': 'application/json',

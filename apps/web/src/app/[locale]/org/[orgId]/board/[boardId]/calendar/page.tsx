@@ -57,7 +57,7 @@ const useCardEvents = (orgId: string, boardId?: string) => {
 
       if (boardId) {
         const apiUrl = process.env.NEXT_PUBLIC_FIREBASE_FUNCTIONS_URL || 'https://europe-west4-spektif-agency-final-prod.cloudfunctions.net'
-        const cardsResponse = await fetch(`${apiUrl}/cards?boardId=${boardId}`, {
+        const cardsResponse = await fetch(`${apiUrl}/getCards?boardId=${boardId}`, {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json',
