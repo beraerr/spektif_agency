@@ -99,13 +99,20 @@ export function CardModal({ card, isOpen, onClose, onUpdate }: CardModalProps) {
       
       try {
         setIsLoadingMembers(true)
-        // TODO: Implement getAvailableMembers endpoint
-        // const members = await apiClient.getAvailableMembers(card.id) as AvailableMember[]
-        // setAvailableMembers(members)
-        setAvailableMembers([])
+        // Get employees from the organization
+        const members = await apiClient.getEmployees('spektif') as any[]
+        const availableMembers: AvailableMember[] = members.map(member => ({
+          id: member.id,
+          name: member.name,
+          email: member.email,
+          position: member.position || 'Employee',
+          avatar: member.avatar || ''
+        }))
+        setAvailableMembers(availableMembers)
       } catch (error) {
         console.error('Error fetching available members:', error)
         toast.error('Üyeler yüklenirken hata oluştu')
+        setAvailableMembers([])
       } finally {
         setIsLoadingMembers(false)
       }

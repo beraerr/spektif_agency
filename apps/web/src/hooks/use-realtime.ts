@@ -47,13 +47,13 @@ export function useRealtimeBoard(boardId: string) {
     // Set connected to true for UI purposes
     setIsConnected(true)
 
-    // Poll for updates every 5 seconds
+    // Poll for updates every 30 seconds (reduced frequency)
     const pollInterval = setInterval(() => {
       // Emit a custom event to trigger data refresh
       window.dispatchEvent(new CustomEvent('poll-for-updates', {
         detail: { boardId }
       }))
-    }, 5000)
+    }, 30000)
 
     return () => {
       clearInterval(pollInterval)

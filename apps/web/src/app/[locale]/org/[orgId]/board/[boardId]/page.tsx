@@ -121,6 +121,7 @@ export default function BoardPage() {
       id: card.id,
       title: card.title,
       description: card.description || '',
+      dueDate: card.dueDate,
       labels: (card as any).labels || [],
       members: card.members?.map(member => member.user?.name || member.user?.email || 'Unknown') || []
     })) || []

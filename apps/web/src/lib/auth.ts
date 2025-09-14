@@ -75,6 +75,7 @@ export const authOptions: NextAuthOptions = {
     async jwt({ token, user }) {
       if (user) {
         token.id = user.id
+        token.role = (user as any).role
         token.organizations = (user as any).organizations
         token.backendToken = (user as any).token
       }
@@ -83,6 +84,7 @@ export const authOptions: NextAuthOptions = {
     async session({ session, token }) {
       if (token) {
         (session.user as any).id = token.id as string
+        (session.user as any).role = token.role as string
         (session.user as any).organizations = token.organizations as any
         (session.user as any).backendToken = token.backendToken as string
       }

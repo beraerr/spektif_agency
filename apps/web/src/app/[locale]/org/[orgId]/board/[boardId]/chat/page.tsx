@@ -141,8 +141,8 @@ const useBoardChat = (boardId: string) => {
 
     fetchChatData()
 
-    // Set up real-time polling
-    const interval = setInterval(fetchChatData, 5000)
+    // Set up real-time polling (reduced frequency)
+    const interval = setInterval(fetchChatData, 30000)
     return () => clearInterval(interval)
   }, [boardId, session])
 
