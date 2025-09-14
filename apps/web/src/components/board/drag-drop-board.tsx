@@ -21,6 +21,7 @@ import { Button } from '@/components/ui/button'
 import { Plus } from 'lucide-react'
 import { DroppableList, ListData } from './droppable-list'
 import { DraggableCard, CardData } from './draggable-card'
+import { apiClient } from '@/lib/api'
 
 interface DragDropBoardProps {
   lists: ListData[]
@@ -29,6 +30,7 @@ interface DragDropBoardProps {
   onAddList?: () => void
   onAddCard?: (listId: string) => void
   onUpdateList?: (listId: string, title: string) => void
+  boardId?: string
 }
 
 export function DragDropBoard({
@@ -37,7 +39,8 @@ export function DragDropBoard({
   onCardClick,
   onAddList,
   onAddCard,
-  onUpdateList
+  onUpdateList,
+  boardId
 }: DragDropBoardProps) {
   const [activeCard, setActiveCard] = useState<CardData | null>(null)
   const [activeList, setActiveList] = useState<ListData | null>(null)
@@ -133,11 +136,19 @@ export function DragDropBoard({
           // Update UI immediately for better UX
           onListsChange(newLists)
           
-          // TODO: Add API call for list reordering when backend is ready
-          // await apiClient.reorderLists(boardId, newLists.map((list, index) => ({
-          //   id: list.id,
-          //   position: index
-          // })))
+          // API call for list reordering
+          if (boardId) {
+            try {
+              await apiClient.reorderLists(boardId, newLists.map((list, index) => ({
+                id: list.id,
+                position: index
+              })))
+            } catch (error) {
+              console.error('Failed to reorder lists:', error)
+              // Revert UI change on error
+              onListsChange(lists)
+            }
+          }
         }
         return
       }

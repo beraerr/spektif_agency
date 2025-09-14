@@ -96,7 +96,7 @@ class ApiClient {
     })
   }
 
-  async updateClient(clientId: string, data: Partial<{
+  async updateClient(organizationId: string, clientId: string, data: Partial<{
     name: string
     email: string
     phone: string
@@ -108,8 +108,46 @@ class ApiClient {
     return this.request('/updateClient', {
       method: 'POST',
       body: JSON.stringify({
+        organizationId,
         id: clientId,
         ...data
+      }),
+    })
+  }
+
+  async deleteClient(organizationId: string, clientId: string) {
+    return this.request('/deleteClient', {
+      method: 'POST',
+      body: JSON.stringify({
+        organizationId,
+        id: clientId
+      }),
+    })
+  }
+
+  async updateEmployee(organizationId: string, employeeId: string, data: Partial<{
+    name: string
+    surname: string
+    email: string
+    position: string
+    role: string
+  }>) {
+    return this.request('/updateEmployee', {
+      method: 'POST',
+      body: JSON.stringify({
+        organizationId,
+        id: employeeId,
+        ...data
+      }),
+    })
+  }
+
+  async deleteEmployee(organizationId: string, employeeId: string) {
+    return this.request('/deleteEmployee', {
+      method: 'POST',
+      body: JSON.stringify({
+        organizationId,
+        id: employeeId
       }),
     })
   }

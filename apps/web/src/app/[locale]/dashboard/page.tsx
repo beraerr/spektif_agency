@@ -6,7 +6,8 @@ import { useEffect, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Calendar, MessageSquare, Users, BarChart3, Home, UserCheck, Building2, LogOut, Sparkles, Folder, MoreVertical, Image, Upload, X, Loader2 } from 'lucide-react'
+import { Input } from '@/components/ui/input'
+import { Calendar, MessageSquare, Users, BarChart3, Home, UserCheck, Building2, LogOut, Sparkles, Folder, MoreVertical, Image, Upload, X, Loader2, Edit, Save, Trash2 } from 'lucide-react'
 import { ThemeSwitcher } from '@/components/theme-switcher'
 import { LanguageSwitcher } from '@/components/language-switcher'
 import { apiClient } from '@/lib/api'
@@ -727,6 +728,8 @@ function MembersView({ session }: { session: any }) {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
   const [members, setMembers] = useState<Member[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [editingMember, setEditingMember] = useState<string | null>(null)
+  const [editForm, setEditForm] = useState<Partial<Member>>({})
 
   // Use hardcoded organization ID since session doesn't have org info
   const organizationId = 'spektif'
@@ -758,6 +761,56 @@ function MembersView({ session }: { session: any }) {
     } catch (error) {
       console.error('Error refetching employees:', error)
       toast.error('Çalışan listesi güncellenirken hata oluştu')
+    }
+  }
+
+  const handleEditMember = (member: Member) => {
+    setEditingMember(member.id)
+    setEditForm({
+      name: member.name,
+      surname: member.surname,
+      email: member.email,
+      position: member.position,
+      role: member.role
+    })
+  }
+
+  const handleSaveEdit = async (memberId: string) => {
+    try {
+      // API call to update member
+      await apiClient.updateEmployee(organizationId, memberId, editForm)
+      
+      // Update local state
+      setMembers(members.map(member => 
+        member.id === memberId 
+          ? { ...member, ...editForm }
+          : member
+      ))
+      
+      setEditingMember(null)
+      setEditForm({})
+      toast.success('Üye bilgileri güncellendi!')
+    } catch (error) {
+      console.error('Error updating member:', error)
+      toast.error('Üye güncellenirken hata oluştu')
+    }
+  }
+
+  const handleCancelEdit = () => {
+    setEditingMember(null)
+    setEditForm({})
+  }
+
+  const handleDeleteMember = async (memberId: string) => {
+    if (!confirm('Bu üyeyi silmek istediğinizden emin misiniz?')) return
+    
+    try {
+      await apiClient.deleteEmployee(organizationId, memberId)
+      setMembers(members.filter(member => member.id !== memberId))
+      toast.success('Üye silindi!')
+    } catch (error) {
+      console.error('Error deleting member:', error)
+      toast.error('Üye silinirken hata oluştu')
     }
   }
 
@@ -798,8 +851,51 @@ function MembersView({ session }: { session: any }) {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {members.map((member) => (
-            <Card key={member.id}>
-              <CardHeader className="pb-3">
+            <Card key={member.id} className="relative">
+              {/* Edit Button */}
+              <div className="absolute top-3 right-3 flex space-x-1">
+                {editingMember === member.id ? (
+                  <>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-8 w-8 p-0 hover:bg-green-100 hover:text-green-600"
+                      onClick={() => handleSaveEdit(member.id)}
+                    >
+                      <Save className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-8 w-8 p-0 hover:bg-gray-100"
+                      onClick={handleCancelEdit}
+                    >
+                      <X className="w-4 h-4" />
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-8 w-8 p-0 hover:bg-blue-100 hover:text-blue-600"
+                      onClick={() => handleEditMember(member)}
+                    >
+                      <Edit className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-8 w-8 p-0 hover:bg-red-100 hover:text-red-600"
+                      onClick={() => handleDeleteMember(member.id)}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </>
+                )}
+              </div>
+
+              <CardHeader className="pb-3 pr-16">
                 <div className="flex items-center space-x-3">
                   <div className="w-10 h-10 bg-brand-primary/10 rounded-full flex items-center justify-center">
                     <span className="text-brand-primary font-medium">
@@ -807,10 +903,35 @@ function MembersView({ session }: { session: any }) {
                     </span>
                   </div>
                   <div className="flex-1">
-                    <CardTitle className="text-base">
-                      {member.name} {member.surname}
-                    </CardTitle>
-                    <p className="text-sm text-muted-foreground">{member.email}</p>
+                    {editingMember === member.id ? (
+                      <div className="space-y-2">
+                        <Input
+                          value={editForm.name || ''}
+                          onChange={(e) => setEditForm({...editForm, name: e.target.value})}
+                          placeholder="Ad"
+                          className="h-8 text-sm"
+                        />
+                        <Input
+                          value={editForm.surname || ''}
+                          onChange={(e) => setEditForm({...editForm, surname: e.target.value})}
+                          placeholder="Soyad"
+                          className="h-8 text-sm"
+                        />
+                        <Input
+                          value={editForm.email || ''}
+                          onChange={(e) => setEditForm({...editForm, email: e.target.value})}
+                          placeholder="Email"
+                          className="h-8 text-sm"
+                        />
+                      </div>
+                    ) : (
+                      <>
+                        <CardTitle className="text-base">
+                          {member.name} {member.surname}
+                        </CardTitle>
+                        <p className="text-sm text-muted-foreground">{member.email}</p>
+                      </>
+                    )}
                   </div>
                 </div>
               </CardHeader>
@@ -818,20 +939,41 @@ function MembersView({ session }: { session: any }) {
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-muted-foreground">Pozisyon:</span>
-                    <span className="text-sm font-medium">{member.position || 'Belirtilmemiş'}</span>
+                    {editingMember === member.id ? (
+                      <Input
+                        value={editForm.position || ''}
+                        onChange={(e) => setEditForm({...editForm, position: e.target.value})}
+                        placeholder="Pozisyon"
+                        className="h-6 text-xs w-24"
+                      />
+                    ) : (
+                      <span className="text-sm font-medium">{member.position || 'Belirtilmemiş'}</span>
+                    )}
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-muted-foreground">Rol:</span>
-                    <span className={`text-sm px-2 py-1 rounded-full ${
-                      member.role === 'ADMIN' 
-                        ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
-                        : member.role === 'ACCOUNTANT'
-                        ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
-                        : 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                    }`}>
-                      {member.role === 'ADMIN' ? 'Yönetici' : 
-                       member.role === 'ACCOUNTANT' ? 'Muhasebeci' : 'Çalışan'}
-                    </span>
+                    {editingMember === member.id ? (
+                      <select
+                        value={editForm.role || member.role}
+                        onChange={(e) => setEditForm({...editForm, role: e.target.value})}
+                        className="h-6 text-xs w-20 border rounded px-1"
+                      >
+                        <option value="EMPLOYEE">Çalışan</option>
+                        <option value="ACCOUNTANT">Muhasebeci</option>
+                        <option value="ADMIN">Yönetici</option>
+                      </select>
+                    ) : (
+                      <span className={`text-sm px-2 py-1 rounded-full ${
+                        member.role === 'ADMIN' 
+                          ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+                          : member.role === 'ACCOUNTANT'
+                          ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
+                          : 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                      }`}>
+                        {member.role === 'ADMIN' ? 'Yönetici' : 
+                         member.role === 'ACCOUNTANT' ? 'Muhasebeci' : 'Çalışan'}
+                      </span>
+                    )}
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-muted-foreground">Katılım:</span>
@@ -863,6 +1005,8 @@ function ClientsView({ session }: { session: any }) {
   const [clients, setClients] = useState<any[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isCreating, setIsCreating] = useState(false)
+  const [editingClient, setEditingClient] = useState<string | null>(null)
+  const [editForm, setEditForm] = useState<Partial<any>>({})
   const organizationId = 'spektif' // Same as employees section
 
   useEffect(() => {
@@ -900,6 +1044,55 @@ function ClientsView({ session }: { session: any }) {
       toast.error('Müşteri oluşturulamadı!')
     } finally {
       setIsCreating(false)
+    }
+  }
+
+  const handleEditClient = (client: any) => {
+    setEditingClient(client.id)
+    setEditForm({
+      name: client.name,
+      email: client.email,
+      phone: client.phone,
+      company: client.company,
+      address: client.address,
+      notes: client.notes
+    })
+  }
+
+  const handleSaveClientEdit = async (clientId: string) => {
+    try {
+      await apiClient.updateClient(organizationId, clientId, editForm)
+      
+      setClients(clients.map(client => 
+        client.id === clientId 
+          ? { ...client, ...editForm }
+          : client
+      ))
+      
+      setEditingClient(null)
+      setEditForm({})
+      toast.success('Müşteri bilgileri güncellendi!')
+    } catch (error) {
+      console.error('Error updating client:', error)
+      toast.error('Müşteri güncellenirken hata oluştu')
+    }
+  }
+
+  const handleCancelClientEdit = () => {
+    setEditingClient(null)
+    setEditForm({})
+  }
+
+  const handleDeleteClient = async (clientId: string) => {
+    if (!confirm('Bu müşteriyi silmek istediğinizden emin misiniz?')) return
+    
+    try {
+      await apiClient.deleteClient(organizationId, clientId)
+      setClients(clients.filter(client => client.id !== clientId))
+      toast.success('Müşteri silindi!')
+    } catch (error) {
+      console.error('Error deleting client:', error)
+      toast.error('Müşteri silinirken hata oluştu')
     }
   }
 
@@ -942,15 +1135,77 @@ function ClientsView({ session }: { session: any }) {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {clients.map((client) => (
-            <Card key={client.id}>
-              <CardHeader className="pb-3">
+            <Card key={client.id} className="relative">
+              {/* Edit Button */}
+              <div className="absolute top-3 right-3 flex space-x-1">
+                {editingClient === client.id ? (
+                  <>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-8 w-8 p-0 hover:bg-green-100 hover:text-green-600"
+                      onClick={() => handleSaveClientEdit(client.id)}
+                    >
+                      <Save className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-8 w-8 p-0 hover:bg-gray-100"
+                      onClick={handleCancelClientEdit}
+                    >
+                      <X className="w-4 h-4" />
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-8 w-8 p-0 hover:bg-blue-100 hover:text-blue-600"
+                      onClick={() => handleEditClient(client)}
+                    >
+                      <Edit className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-8 w-8 p-0 hover:bg-red-100 hover:text-red-600"
+                      onClick={() => handleDeleteClient(client.id)}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </>
+                )}
+              </div>
+
+              <CardHeader className="pb-3 pr-16">
                 <div className="flex items-center space-x-3">
                   <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center">
                     <Building2 className="w-5 h-5 text-blue-600 dark:text-blue-400" />
                   </div>
                   <div className="flex-1">
-                    <CardTitle className="text-base">{client.name}</CardTitle>
-                    <p className="text-sm text-muted-foreground">{client.email}</p>
+                    {editingClient === client.id ? (
+                      <div className="space-y-2">
+                        <Input
+                          value={editForm.name || ''}
+                          onChange={(e) => setEditForm({...editForm, name: e.target.value})}
+                          placeholder="Müşteri Adı"
+                          className="h-8 text-sm"
+                        />
+                        <Input
+                          value={editForm.email || ''}
+                          onChange={(e) => setEditForm({...editForm, email: e.target.value})}
+                          placeholder="Email"
+                          className="h-8 text-sm"
+                        />
+                      </div>
+                    ) : (
+                      <>
+                        <CardTitle className="text-base">{client.name}</CardTitle>
+                        <p className="text-sm text-muted-foreground">{client.email}</p>
+                      </>
+                    )}
                   </div>
                 </div>
               </CardHeader>
@@ -958,21 +1213,50 @@ function ClientsView({ session }: { session: any }) {
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-muted-foreground">Şirket:</span>
-                    <span className="text-sm font-medium">{client.company || 'Belirtilmemiş'}</span>
+                    {editingClient === client.id ? (
+                      <Input
+                        value={editForm.company || ''}
+                        onChange={(e) => setEditForm({...editForm, company: e.target.value})}
+                        placeholder="Şirket"
+                        className="h-6 text-xs w-24"
+                      />
+                    ) : (
+                      <span className="text-sm font-medium">{client.company || 'Belirtilmemiş'}</span>
+                    )}
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-muted-foreground">Telefon:</span>
-                    <span className="text-sm">{client.phone || '-'}</span>
+                    {editingClient === client.id ? (
+                      <Input
+                        value={editForm.phone || ''}
+                        onChange={(e) => setEditForm({...editForm, phone: e.target.value})}
+                        placeholder="Telefon"
+                        className="h-6 text-xs w-24"
+                      />
+                    ) : (
+                      <span className="text-sm">{client.phone || '-'}</span>
+                    )}
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-muted-foreground">Durum:</span>
-                    <span className={`text-sm px-2 py-1 rounded-full ${
-                      client.status === 'Aktif' 
-                        ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' 
-                        : 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200'
-                    }`}>
-                      {client.status}
-                    </span>
+                    {editingClient === client.id ? (
+                      <select
+                        value={editForm.status || client.status || 'Aktif'}
+                        onChange={(e) => setEditForm({...editForm, status: e.target.value})}
+                        className="h-6 text-xs w-20 border rounded px-1"
+                      >
+                        <option value="Aktif">Aktif</option>
+                        <option value="Pasif">Pasif</option>
+                      </select>
+                    ) : (
+                      <span className={`text-sm px-2 py-1 rounded-full ${
+                        client.status === 'Aktif' 
+                          ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' 
+                          : 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200'
+                      }`}>
+                        {client.status}
+                      </span>
+                    )}
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-muted-foreground">Projeler:</span>

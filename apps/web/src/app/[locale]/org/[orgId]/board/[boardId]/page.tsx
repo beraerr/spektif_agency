@@ -331,6 +331,7 @@ export default function BoardPage() {
             onAddList={handleAddList}
             onAddCard={handleAddCard}
             onUpdateList={handleListUpdate}
+            boardId={boardId}
           />
         </div>
       </main>

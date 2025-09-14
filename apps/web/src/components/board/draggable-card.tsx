@@ -6,7 +6,9 @@ import { CSS } from '@dnd-kit/utilities'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
-import { Calendar, MessageSquare, Paperclip, Clock } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Calendar, MessageSquare, Paperclip, Clock, X, User } from 'lucide-react'
+import { useState, useEffect, useRef } from 'react'
 
 export interface CardData {
   id: string
@@ -36,6 +38,9 @@ const labelColors: Record<string, string> = {
 }
 
 export function DraggableCard({ card, onClick }: DraggableCardProps) {
+  const [showMemberPopup, setShowMemberPopup] = useState(false)
+  const popupRef = useRef<HTMLDivElement>(null)
+  
   const {
     attributes,
     listeners,
@@ -44,6 +49,23 @@ export function DraggableCard({ card, onClick }: DraggableCardProps) {
     transition,
     isDragging,
   } = useSortable({ id: card.id })
+
+  // Close popup when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (popupRef.current && !popupRef.current.contains(event.target as Node)) {
+        setShowMemberPopup(false)
+      }
+    }
+
+    if (showMemberPopup) {
+      document.addEventListener('mousedown', handleClickOutside)
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [showMemberPopup])
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -138,17 +160,88 @@ export function DraggableCard({ card, onClick }: DraggableCardProps) {
 
           {/* Members */}
           {card.members && card.members.length > 0 && (
-            <div className="flex -space-x-1">
+            <div className="flex -space-x-1 relative">
               {card.members.slice(0, 3).map((member, index) => (
-                <Avatar key={index} className="w-6 h-6 border-2 border-white dark:border-gray-700">
+                <Avatar 
+                  key={index} 
+                  className="w-6 h-6 border-2 border-white dark:border-gray-700 cursor-pointer hover:scale-110 transition-transform"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setShowMemberPopup(!showMemberPopup)
+                  }}
+                >
                   <AvatarFallback className="text-xs bg-blue-500 text-white">
-                    {member}
+                    {member.charAt(0).toUpperCase()}
                   </AvatarFallback>
                 </Avatar>
               ))}
               {card.members.length > 3 && (
-                <div className="w-6 h-6 bg-gray-200 dark:bg-gray-600 rounded-full border-2 border-white dark:border-gray-700 flex items-center justify-center">
+                <div 
+                  className="w-6 h-6 bg-gray-200 dark:bg-gray-600 rounded-full border-2 border-white dark:border-gray-700 flex items-center justify-center cursor-pointer hover:scale-110 transition-transform"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setShowMemberPopup(!showMemberPopup)
+                  }}
+                >
                   <span className="text-xs text-gray-600 dark:text-gray-300">+{card.members.length - 3}</span>
+                </div>
+              )}
+              
+              {/* Member Management Popup */}
+              {showMemberPopup && (
+                <div ref={popupRef} className="absolute top-8 right-0 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg p-3 z-50 min-w-[200px]">
+                  <div className="flex items-center justify-between mb-2">
+                    <h4 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Members</h4>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 w-6 p-0"
+                      onClick={() => setShowMemberPopup(false)}
+                    >
+                      <X className="w-3 h-3" />
+                    </Button>
+                  </div>
+                  <div className="space-y-2">
+                    {card.members.map((member, index) => (
+                      <div key={index} className="flex items-center justify-between">
+                        <div className="flex items-center space-x-2">
+                          <Avatar className="w-6 h-6">
+                            <AvatarFallback className="text-xs bg-blue-500 text-white">
+                              {member.charAt(0).toUpperCase()}
+                            </AvatarFallback>
+                          </Avatar>
+                          <span className="text-sm text-gray-900 dark:text-gray-100">{member}</span>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 w-6 p-0 hover:bg-red-100 hover:text-red-600"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            // Remove member logic would go here
+                            console.log('Remove member:', member)
+                          }}
+                        >
+                          <X className="w-3 h-3" />
+                        </Button>
+                      </div>
+                    ))}
+                    <div className="pt-2 border-t border-gray-200 dark:border-gray-700">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="w-full justify-start text-blue-600 hover:bg-blue-50"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          // Add member logic would go here
+                          console.log('Add member')
+                        }}
+                      >
+                        <User className="w-4 h-4 mr-2" />
+                        Add Member
+                      </Button>
+                    </div>
+                  </div>
                 </div>
               )}
             </div>

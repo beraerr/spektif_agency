@@ -190,10 +190,10 @@ export function CardModal({ card, isOpen, onClose, onUpdate }: CardModalProps) {
                 <div className="flex-1">
                   {isEditingTitle ? (
                     <div className="space-y-2">
-                      <Input
+                      <Textarea
                         value={title}
                         onChange={(e) => setTitle(e.target.value)}
-                        className="text-xl font-semibold border-2 border-blue-300 focus:border-blue-500 bg-white shadow-sm"
+                        className="text-xl font-semibold min-h-[60px] resize-none"
                         placeholder="Card title..."
                         autoFocus
                       />
@@ -224,17 +224,14 @@ export function CardModal({ card, isOpen, onClose, onUpdate }: CardModalProps) {
                       className="cursor-pointer group"
                       onClick={() => setIsEditingTitle(true)}
                     >
-                      <div className="border-2 border-transparent group-hover:border-gray-300 rounded-lg p-3 bg-gray-50 group-hover:bg-white transition-all duration-200">
-                        <h2 className="text-xl font-semibold text-gray-900 mb-2">
+                      <div className="border border-gray-200 rounded-lg p-3 bg-gray-50 group-hover:bg-white group-hover:border-gray-300 transition-all duration-200 min-h-[60px]">
+                        <h2 className="text-xl font-semibold text-gray-900">
                           {title || "Card title..."}
                         </h2>
-                        <p className="text-sm text-gray-500">Click to edit title</p>
+                        <p className="text-sm text-gray-500 mt-1">Click to edit title</p>
                       </div>
                     </div>
                   )}
-                  <p className="text-sm text-gray-600">
-                    in list <span className="font-medium">Project Brief</span>
-                  </p>
                 </div>
               </div>
 
