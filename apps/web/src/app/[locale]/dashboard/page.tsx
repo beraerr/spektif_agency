@@ -357,8 +357,8 @@ function TemplatesView({ session }: { session: any }) {
         title: 'Yeni Board',
         description: 'Board açıklaması...',
         color: '#4ADE80',
-        organizationId: 'spektif-agency', // Default organization
-        userId: 'spektif-agency' // User ID for board access
+        organizationId: 'spektif', // Default organization
+        userId: 'spektif' // User ID for board access
       })
       
       // Add to boards list
@@ -398,7 +398,7 @@ function TemplatesView({ session }: { session: any }) {
         
         if (token) {
           // Try with authentication first
-          response = await fetch(`${apiUrl}/boards?organizationId=spektif-agency`, {
+          response = await fetch(`${apiUrl}/boards?organizationId=spektif`, {
             headers: {
               'Authorization': `Bearer ${token}`,
               'Content-Type': 'application/json',
@@ -420,7 +420,7 @@ function TemplatesView({ session }: { session: any }) {
           
           if (loginResponse.ok) {
             const loginData = await loginResponse.json()
-            response = await fetch(`${apiUrl}/getBoards?userId=spektif-agency`, {
+            response = await fetch(`${apiUrl}/getBoards?userId=spektif`, {
               headers: {
                 'Authorization': `Bearer ${loginData.token}`,
                 'Content-Type': 'application/json',
@@ -500,7 +500,7 @@ function TemplatesView({ session }: { session: any }) {
               <div
                 className="rounded-lg overflow-hidden shadow-md hover:shadow-xl transition-all duration-300 cursor-pointer transform hover:-translate-y-1 relative"
                 onClick={() => {
-                  window.location.href = `/tr/org/spektif-agency/board/${board.id}`
+                  window.location.href = `/tr/org/spektif/board/${board.id}`
                 }}
               >
                 {/* Cover Image - Large like Trello */}
@@ -710,7 +710,7 @@ function MembersView({ session }: { session: any }) {
   const [isLoading, setIsLoading] = useState(true)
 
   // Use hardcoded organization ID since session doesn't have org info
-  const organizationId = 'spektif-agency'
+  const organizationId = 'spektif'
 
   // Fetch employees on component mount
   useEffect(() => {
@@ -844,7 +844,7 @@ function ClientsView({ session }: { session: any }) {
   const [clients, setClients] = useState<any[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isCreating, setIsCreating] = useState(false)
-  const organizationId = 'spektif-agency' // Same as employees section
+  const organizationId = 'spektif' // Same as employees section
 
   useEffect(() => {
     loadClients()

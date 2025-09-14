@@ -841,7 +841,7 @@ export const seedDatabase = onRequest(
         email: 'admin@spektif.com',
         name: 'Admin User',
         role: 'ADMIN',
-        organizationId: 'spektif-agency',
+        organizationId: 'spektif',
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
         updatedAt: admin.firestore.FieldValue.serverTimestamp()
       };
@@ -851,14 +851,14 @@ export const seedDatabase = onRequest(
 
       // Create organization
       const organization = {
-        id: 'spektif-agency',
+        id: 'spektif',
         name: 'Spektif Agency',
         members: ['admin'],
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
         updatedAt: admin.firestore.FieldValue.serverTimestamp()
       };
 
-      await db.collection('organizations').doc('spektif-agency').set(organization);
+      await db.collection('organizations').doc('spektif').set(organization);
       console.log('✅ Organization created');
 
       // Create sample board
@@ -866,7 +866,7 @@ export const seedDatabase = onRequest(
         id: 'sample-board-1',
         title: 'Proje Yönetimi',
         description: 'Ana proje yönetim panosu',
-        organizationId: 'spektif-agency',
+        organizationId: 'spektif',
         members: ['admin'],
         color: '#3B82F6',
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -964,7 +964,7 @@ export const seedDatabase = onRequest(
           position: 'Frontend Developer',
           phone: '+90 555 123 4567',
           role: 'employee',
-          organizationId: 'spektif-agency',
+          organizationId: 'spektif',
           createdAt: admin.firestore.FieldValue.serverTimestamp(),
           updatedAt: admin.firestore.FieldValue.serverTimestamp()
         },
@@ -976,7 +976,7 @@ export const seedDatabase = onRequest(
           position: 'Backend Developer',
           phone: '+90 555 987 6543',
           role: 'employee',
-          organizationId: 'spektif-agency',
+          organizationId: 'spektif',
           createdAt: admin.firestore.FieldValue.serverTimestamp(),
           updatedAt: admin.firestore.FieldValue.serverTimestamp()
         }
