@@ -357,7 +357,8 @@ function TemplatesView({ session }: { session: any }) {
         title: 'Yeni Board',
         description: 'Board açıklaması...',
         color: '#4ADE80',
-        organizationId: 'spektif-agency' // Default organization
+        organizationId: 'spektif-agency', // Default organization
+        userId: 'spektif-agency' // User ID for board access
       })
       
       // Add to boards list
@@ -420,7 +421,7 @@ function TemplatesView({ session }: { session: any }) {
           
           if (loginResponse.ok) {
             const loginData = await loginResponse.json()
-            response = await fetch(`${apiUrl}/boards?organizationId=spektif-agency`, {
+            response = await fetch(`${apiUrl}/getBoards?userId=spektif-agency`, {
               headers: {
                 'Authorization': `Bearer ${loginData.token}`,
                 'Content-Type': 'application/json',

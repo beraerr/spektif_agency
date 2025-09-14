@@ -128,7 +128,12 @@ export const login = onRequest(
 // BOARDS ENDPOINTS
 // ============================================================================
 
-export const getBoards = onRequest(async (req: Request, res: Response) => {
+export const getBoards = onRequest(
+  { 
+    cors: true,
+    invoker: "public"
+  },
+  async (req: Request, res: Response) => {
   return cors(req, res, async () => {
     try {
       const { userId } = req.query;
@@ -161,13 +166,15 @@ export const getBoards = onRequest(async (req: Request, res: Response) => {
             .doc(doc.id)
             .collection('cards')
             .where('listId', '==', listDoc.id)
-            .orderBy('position', 'asc')
             .get();
 
-          const cards = cardsSnapshot.docs.map(cardDoc => ({
-            id: cardDoc.id,
-            ...cardDoc.data()
-          }));
+          // Sort by position in memory to avoid composite index requirement
+          const cards = cardsSnapshot.docs
+            .map(cardDoc => ({
+              id: cardDoc.id,
+              ...cardDoc.data()
+            }))
+            .sort((a: any, b: any) => (a.position || 0) - (b.position || 0));
 
           lists.push({
             id: listDoc.id,
@@ -191,7 +198,12 @@ export const getBoards = onRequest(async (req: Request, res: Response) => {
   });
 });
 
-export const createBoard = onRequest(async (req: Request, res: Response) => {
+export const createBoard = onRequest(
+  { 
+    cors: true,
+    invoker: "public"
+  },
+  async (req: Request, res: Response) => {
   return cors(req, res, async () => {
     try {
       const { title, description, organizationId, userId } = req.body;
@@ -222,7 +234,12 @@ export const createBoard = onRequest(async (req: Request, res: Response) => {
   });
 });
 
-export const updateBoard = onRequest(async (req: Request, res: Response) => {
+export const updateBoard = onRequest(
+  { 
+    cors: true,
+    invoker: "public"
+  },
+  async (req: Request, res: Response) => {
   return cors(req, res, async () => {
     try {
       const { boardId } = req.params;
@@ -254,7 +271,12 @@ export const updateBoard = onRequest(async (req: Request, res: Response) => {
 // LISTS ENDPOINTS
 // ============================================================================
 
-export const createList = onRequest(async (req: Request, res: Response) => {
+export const createList = onRequest(
+  { 
+    cors: true,
+    invoker: "public"
+  },
+  async (req: Request, res: Response) => {
   return cors(req, res, async () => {
     try {
       const { boardId, title, position } = req.body;
@@ -286,7 +308,12 @@ export const createList = onRequest(async (req: Request, res: Response) => {
   });
 });
 
-export const updateList = onRequest(async (req: Request, res: Response) => {
+export const updateList = onRequest(
+  { 
+    cors: true,
+    invoker: "public"
+  },
+  async (req: Request, res: Response) => {
   return cors(req, res, async () => {
     try {
       const { boardId, listId } = req.params;
@@ -326,7 +353,12 @@ export const updateList = onRequest(async (req: Request, res: Response) => {
 // CARDS ENDPOINTS
 // ============================================================================
 
-export const createCard = onRequest(async (req: Request, res: Response) => {
+export const createCard = onRequest(
+  { 
+    cors: true,
+    invoker: "public"
+  },
+  async (req: Request, res: Response) => {
   return cors(req, res, async () => {
     try {
       const { boardId, listId, title, description, dueDate, position } = req.body;
@@ -363,7 +395,12 @@ export const createCard = onRequest(async (req: Request, res: Response) => {
   });
 });
 
-export const updateCard = onRequest(async (req: Request, res: Response) => {
+export const updateCard = onRequest(
+  { 
+    cors: true,
+    invoker: "public"
+  },
+  async (req: Request, res: Response) => {
   return cors(req, res, async () => {
     try {
       const { boardId, cardId } = req.params;
@@ -403,7 +440,12 @@ export const updateCard = onRequest(async (req: Request, res: Response) => {
 // FILE UPLOAD ENDPOINTS
 // ============================================================================
 
-export const uploadFile = onRequest(async (req: Request, res: Response) => {
+export const uploadFile = onRequest(
+  { 
+    cors: true,
+    invoker: "public"
+  },
+  async (req: Request, res: Response) => {
   return cors(req, res, async () => {
     try {
       const { boardId, cardId, fileName, fileType, fileData } = req.body;
@@ -462,7 +504,12 @@ export const uploadFile = onRequest(async (req: Request, res: Response) => {
 // CARDS ENDPOINTS
 // ============================================================================
 
-export const getCards = onRequest(async (req: Request, res: Response) => {
+export const getCards = onRequest(
+  { 
+    cors: true,
+    invoker: "public"
+  },
+  async (req: Request, res: Response) => {
   return cors(req, res, async () => {
     try {
       const { listId, boardId, userId } = req.query;

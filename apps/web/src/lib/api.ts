@@ -147,6 +147,7 @@ class ApiClient {
     title: string
     description?: string
     color?: string
+    userId?: string
   }) {
     return this.request('/createBoard', {
       method: 'POST',
