@@ -60,7 +60,12 @@ const cors = require('cors')({ origin: true });
 // AUTHENTICATION ENDPOINTS
 // ============================================================================
 
-export const login = onRequest(async (req: Request, res: Response) => {
+export const login = onRequest(
+  { 
+    cors: true,
+    invoker: "public"
+  },
+  async (req: Request, res: Response) => {
   return cors(req, res, async () => {
     try {
       const { email, password } = req.body;
@@ -580,7 +585,12 @@ export const createEmployee = onRequest(async (req: Request, res: Response) => {
 // HEALTH CHECK
 // ============================================================================
 
-export const health = onRequest(async (req: Request, res: Response) => {
+export const health = onRequest(
+  { 
+    cors: true,
+    invoker: "public"
+  },
+  async (req: Request, res: Response) => {
   return cors(req, res, async () => {
     return res.json({
       status: 'ok',
@@ -590,7 +600,12 @@ export const health = onRequest(async (req: Request, res: Response) => {
   });
 });
 
-export const testFirestore = onRequest(async (req: Request, res: Response) => {
+export const testFirestore = onRequest(
+  { 
+    cors: true,
+    invoker: "public"
+  },
+  async (req: Request, res: Response) => {
   return cors(req, res, async () => {
     try {
       console.log('Testing Firestore connection...');
@@ -635,7 +650,12 @@ export const testFirestore = onRequest(async (req: Request, res: Response) => {
 // SEED DATABASE
 // ============================================================================
 
-export const seedDatabase = onRequest(async (req: Request, res: Response) => {
+export const seedDatabase = onRequest(
+  { 
+    cors: true,
+    invoker: "public"
+  },
+  async (req: Request, res: Response) => {
   return cors(req, res, async () => {
     try {
       console.log('🌱 Starting database seeding...');
