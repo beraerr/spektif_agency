@@ -365,8 +365,7 @@ function TemplatesView({ session }: { session: any }) {
       setBoards(prev => [...prev, newBoard])
       toast.success('Board başarıyla oluşturuldu!')
       
-      // Navigate to the new board
-      window.location.href = `/tr/org/spektif-agency/board/${(newBoard as any).id}`
+      // Stay on templates page - no redirect
     } catch (error) {
       console.error('Board creation error:', error)
       toast.error('Board oluşturulurken hata oluştu')
@@ -710,14 +709,12 @@ function MembersView({ session }: { session: any }) {
   const [members, setMembers] = useState<Member[]>([])
   const [isLoading, setIsLoading] = useState(true)
 
-  // Get the first organization ID from session
-  const organizationId = (session as any)?.user?.organizations?.[0]?.id
+  // Use hardcoded organization ID since session doesn't have org info
+  const organizationId = 'spektif-agency'
 
   // Fetch employees on component mount
   useEffect(() => {
     const fetchEmployees = async () => {
-      if (!organizationId) return
-      
       try {
         setIsLoading(true)
         const employees = await apiClient.getEmployees(organizationId) as Member[]
@@ -731,12 +728,10 @@ function MembersView({ session }: { session: any }) {
     }
 
     fetchEmployees()
-  }, [organizationId])
+  }, [])
 
   const handleEmployeeCreated = async () => {
     // Refetch the members list
-    if (!organizationId) return
-    
     try {
       const employees = await apiClient.getEmployees(organizationId) as Member[]
       setMembers(employees)
