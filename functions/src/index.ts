@@ -617,13 +617,12 @@ export const getClients = onRequest(
 
       const clientsSnapshot = await db.collection('clients')
         .where('organizationId', '==', organizationId)
-        .where('deleted', '!=', true)
         .get();
 
-      const clients = clientsSnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
+      // Filter out deleted clients in memory
+      const clients = clientsSnapshot.docs
+        .map(doc => ({ id: doc.id, ...doc.data() }))
+        .filter((client: any) => !client.deleted);
 
       res.json(clients);
     } catch (error) {
