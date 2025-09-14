@@ -495,7 +495,12 @@ export const getCards = onRequest(async (req: Request, res: Response) => {
 // ORGANIZATIONS ENDPOINTS
 // ============================================================================
 
-export const getOrganizations = onRequest(async (req: Request, res: Response) => {
+export const getOrganizations = onRequest(
+  { 
+    cors: true,
+    invoker: "public"
+  },
+  async (req: Request, res: Response) => {
   return cors(req, res, async () => {
     try {
       const { userId } = req.query;
@@ -521,7 +526,12 @@ export const getOrganizations = onRequest(async (req: Request, res: Response) =>
   });
 });
 
-export const getEmployees = onRequest(async (req: Request, res: Response) => {
+export const getEmployees = onRequest(
+  { 
+    cors: true,
+    invoker: "public"
+  },
+  async (req: Request, res: Response) => {
   return cors(req, res, async () => {
     try {
       const { organizationId } = req.query;
@@ -547,7 +557,12 @@ export const getEmployees = onRequest(async (req: Request, res: Response) => {
   });
 });
 
-export const createEmployee = onRequest(async (req: Request, res: Response) => {
+export const createEmployee = onRequest(
+  { 
+    cors: true,
+    invoker: "public"
+  },
+  async (req: Request, res: Response) => {
   return cors(req, res, async () => {
     try {
       const { organizationId, email, name, surname, position, phone, role } = req.body;

@@ -52,7 +52,7 @@ class ApiClient {
 
   // Organizations
   async getOrganizations() {
-    return this.request('/organizations')
+    return this.request('/getOrganizations')
   }
 
   async createEmployee(organizationId: string, data: {
@@ -63,14 +63,17 @@ class ApiClient {
     phone: string
     role: string
   }) {
-    return this.request(`/organizations/${organizationId}/employees`, {
+    return this.request('/createEmployee', {
       method: 'POST',
-      body: JSON.stringify(data),
+      body: JSON.stringify({
+        organizationId,
+        ...data
+      }),
     })
   }
 
   async getEmployees(organizationId: string) {
-    return this.request(`/organizations/${organizationId}/employees`)
+    return this.request(`/getEmployees?organizationId=${organizationId}`)
   }
 
   // Boards
