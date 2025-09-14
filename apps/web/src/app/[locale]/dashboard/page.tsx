@@ -361,6 +361,25 @@ function TemplatesView({ session }: { session: any }) {
         userId: 'spektif' // User ID for board access
       })
       
+      // Create default lists for the new board
+      try {
+        await apiClient.createList({
+          boardId: (newBoard as any).id,
+          title: 'To Do'
+        })
+        await apiClient.createList({
+          boardId: (newBoard as any).id,
+          title: 'In Progress'
+        })
+        await apiClient.createList({
+          boardId: (newBoard as any).id,
+          title: 'Done'
+        })
+      } catch (listError) {
+        console.error('Error creating default lists:', listError)
+        // Don't fail board creation if lists fail
+      }
+      
       // Add to boards list
       setBoards(prev => [...prev, newBoard])
       toast.success('Board başarıyla oluşturuldu!')

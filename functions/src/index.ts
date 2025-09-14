@@ -384,27 +384,33 @@ export const updateList = onRequest(
   async (req: Request, res: Response) => {
   return cors(req, res, async () => {
     try {
-      const { boardId, listId } = req.params;
-      const updateData = req.body;
+      const { id: listId, ...updateData } = req.body;
 
-      if (!boardId || !listId) {
-        return res.status(400).json({ error: 'Board ID and List ID are required' });
+      if (!listId) {
+        return res.status(400).json({ error: 'List ID is required' });
       }
 
-      await db.collection('boards')
-        .doc(boardId)
-        .collection('lists')
-        .doc(listId)
-        .update({
-          ...updateData,
-          updatedAt: admin.firestore.FieldValue.serverTimestamp()
-        });
+      // Find the list by searching all boards
+      const boardsSnapshot = await db.collection('boards').get();
+      let listRef = null;
+      
+      for (const boardDoc of boardsSnapshot.docs) {
+        const listDoc = await boardDoc.ref.collection('lists').doc(listId).get();
+        if (listDoc.exists) {
+          listRef = listDoc.ref;
+          break;
+        }
+      }
 
-      const updatedDoc = await db.collection('boards')
-        .doc(boardId)
-        .collection('lists')
-        .doc(listId)
-        .get();
+      if (!listRef) {
+        return res.status(404).json({ error: 'List not found' });
+      }
+      await listRef.update({
+        ...updateData,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp()
+      });
+
+      const updatedDoc = await listRef.get();
 
       return res.json({
         id: updatedDoc.id,
@@ -471,27 +477,33 @@ export const updateCard = onRequest(
   async (req: Request, res: Response) => {
   return cors(req, res, async () => {
     try {
-      const { boardId, cardId } = req.params;
-      const updateData = req.body;
+      const { id: cardId, ...updateData } = req.body;
 
-      if (!boardId || !cardId) {
-        return res.status(400).json({ error: 'Board ID and Card ID are required' });
+      if (!cardId) {
+        return res.status(400).json({ error: 'Card ID is required' });
       }
 
-      await db.collection('boards')
-        .doc(boardId)
-        .collection('cards')
-        .doc(cardId)
-        .update({
-          ...updateData,
-          updatedAt: admin.firestore.FieldValue.serverTimestamp()
-        });
+      // Find the card by searching all boards
+      const boardsSnapshot = await db.collection('boards').get();
+      let cardRef = null;
+      
+      for (const boardDoc of boardsSnapshot.docs) {
+        const cardDoc = await boardDoc.ref.collection('cards').doc(cardId).get();
+        if (cardDoc.exists) {
+          cardRef = cardDoc.ref;
+          break;
+        }
+      }
 
-      const updatedDoc = await db.collection('boards')
-        .doc(boardId)
-        .collection('cards')
-        .doc(cardId)
-        .get();
+      if (!cardRef) {
+        return res.status(404).json({ error: 'Card not found' });
+      }
+      await cardRef.update({
+        ...updateData,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp()
+      });
+
+      const updatedDoc = await cardRef.get();
 
       return res.json({
         id: updatedDoc.id,
