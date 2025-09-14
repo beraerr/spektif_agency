@@ -63,7 +63,8 @@ const useAccountingData = (boardId: string) => {
         let token = (session as any)?.user?.backendToken
         
         if (!token) {
-          const loginResponse = await fetch(`https://europe-west4-spektif-agency-final-prod.cloudfunctions.net/auth/login`, {
+          const apiUrl = process.env.NEXT_PUBLIC_FIREBASE_FUNCTIONS_URL || 'https://europe-west4-spektif-agency-final-prod.cloudfunctions.net'
+          const loginResponse = await fetch(`${apiUrl}/login`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ email: 'admin@spektif.com', password: 'admin123' }),
@@ -76,7 +77,8 @@ const useAccountingData = (boardId: string) => {
         }
 
         // Try to fetch real accounting data
-        const response = await fetch(`https://europe-west4-spektif-agency-final-prod.cloudfunctions.net/accounting/board/${boardId}`, {
+        const apiUrl = process.env.NEXT_PUBLIC_FIREBASE_FUNCTIONS_URL || 'https://europe-west4-spektif-agency-final-prod.cloudfunctions.net'
+        const response = await fetch(`${apiUrl}/accounting/board/${boardId}`, {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json',

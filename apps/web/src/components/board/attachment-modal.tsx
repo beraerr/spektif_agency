@@ -85,7 +85,8 @@ export function AttachmentModal({ isOpen, onClose, onUpload, onAddLink }: Attach
         formData.append('boardId', 'current-board-id') // This should be passed as prop
         formData.append('cardId', 'current-card-id') // This should be passed as prop
         
-        const response = await fetch('/api/files/upload', {
+        const apiUrl = process.env.NEXT_PUBLIC_FIREBASE_FUNCTIONS_URL || 'https://europe-west4-spektif-agency-final-prod.cloudfunctions.net'
+        const response = await fetch(`${apiUrl}/uploadFile`, {
           method: 'POST',
           body: formData,
           headers: {

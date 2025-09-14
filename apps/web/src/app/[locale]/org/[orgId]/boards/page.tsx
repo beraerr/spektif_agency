@@ -34,7 +34,8 @@ export default function BoardsPage() {
         
         // If no token, get one using demo credentials
         if (!token) {
-          const loginResponse = await fetch(`https://europe-west4-spektif-agency-final-prod.cloudfunctions.net/auth/login`, {
+          const apiUrl = process.env.NEXT_PUBLIC_FIREBASE_FUNCTIONS_URL || 'https://europe-west4-spektif-agency-final-prod.cloudfunctions.net'
+          const loginResponse = await fetch(`${apiUrl}/login`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ email: 'admin@spektif.com', password: 'admin123' }),

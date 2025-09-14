@@ -8,7 +8,5 @@
     "nextjs.json",
     "react-library.json"
   ],
-  "dependencies": {
-    "@dataconnect/generated": "file:src/dataconnect-generated"
-  }
+  "dependencies": {}
 }
