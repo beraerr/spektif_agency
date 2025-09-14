@@ -109,7 +109,7 @@ export function DragDropBoard({
     }
   }
 
-  const handleDragEnd = (event: DragEndEvent) => {
+  const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event
     setActiveCard(null)
     setActiveList(null)
@@ -121,38 +121,84 @@ export function DragDropBoard({
 
     if (activeId === overId) return
 
-    // Handle list reordering
-    if (active.data.current?.type === 'list') {
-      const activeIndex = lists.findIndex(list => list.id === activeId)
-      const overIndex = lists.findIndex(list => list.id === overId)
+    try {
+      // Handle list reordering
+      if (active.data.current?.type === 'list') {
+        const activeIndex = lists.findIndex(list => list.id === activeId)
+        const overIndex = lists.findIndex(list => list.id === overId)
 
-      if (activeIndex !== -1 && overIndex !== -1) {
-        const newLists = arrayMove(lists, activeIndex, overIndex)
-        onListsChange(newLists)
+        if (activeIndex !== -1 && overIndex !== -1) {
+          const newLists = arrayMove(lists, activeIndex, overIndex)
+          
+          // Update UI immediately for better UX
+          onListsChange(newLists)
+          
+          // TODO: Add API call for list reordering when backend is ready
+          // await apiClient.reorderLists(boardId, newLists.map((list, index) => ({
+          //   id: list.id,
+          //   position: index
+          // })))
+        }
+        return
       }
-      return
-    }
 
-    // Handle card movement (existing logic)
-    const activeCard = findCard(activeId)
-    const overCard = findCard(overId)
+      // Handle card movement
+      const activeCard = findCard(activeId)
+      const overCard = findCard(overId)
 
-    if (!activeCard) return
+      if (!activeCard) return
 
-    const activeList = findListByCardId(activeId)
-    const overList = overCard ? findListByCardId(overId) : findList(overId)
+      const activeList = findListByCardId(activeId)
+      const overList = overCard ? findListByCardId(overId) : findList(overId)
 
-    if (!activeList || !overList) return
+      if (!activeList || !overList) return
 
-    // If in the same list, reorder
-    if (activeList.id === overList.id) {
-      const newLists = [...lists]
-      const listIndex = newLists.findIndex(list => list.id === activeList.id)
-      const oldIndex = activeList.cards.findIndex(card => card.id === activeId)
-      const newIndex = overCard ? overList.cards.findIndex(card => card.id === overId) : overList.cards.length
+      // If in the same list, reorder
+      if (activeList.id === overList.id) {
+        const newLists = [...lists]
+        const listIndex = newLists.findIndex(list => list.id === activeList.id)
+        const oldIndex = activeList.cards.findIndex(card => card.id === activeId)
+        const newIndex = overCard ? overList.cards.findIndex(card => card.id === overId) : overList.cards.length
 
-      newLists[listIndex].cards = arrayMove(newLists[listIndex].cards, oldIndex, newIndex)
-      onListsChange(newLists)
+        newLists[listIndex].cards = arrayMove(newLists[listIndex].cards, oldIndex, newIndex)
+        
+        // Update UI immediately for better UX
+        onListsChange(newLists)
+        
+        // TODO: Add API call for card reordering when backend is ready
+        // await apiClient.moveCard(activeCard.id, {
+        //   listId: overList.id,
+        //   position: newIndex,
+        //   boardId: boardId
+        // })
+      } else {
+        // Moving card to different list
+        const newLists = [...lists]
+        
+        // Remove from source list
+        const sourceListIndex = newLists.findIndex(list => list.id === activeList.id)
+        newLists[sourceListIndex].cards = newLists[sourceListIndex].cards.filter(card => card.id !== activeId)
+        
+        // Add to target list
+        const targetListIndex = newLists.findIndex(list => list.id === overList.id)
+        const newCard = { ...activeCard, listId: overList.id }
+        newLists[targetListIndex].cards.push(newCard)
+        
+        // Update UI immediately for better UX
+        onListsChange(newLists)
+        
+        // TODO: Add API call for card movement when backend is ready
+        // await apiClient.moveCard(activeCard.id, {
+        //   listId: overList.id,
+        //   position: newLists[targetListIndex].cards.length - 1,
+        //   boardId: boardId
+        // })
+      }
+    } catch (error) {
+      console.error('Drag drop error:', error)
+      // On error, revert the UI change by refetching data
+      // This would need to be passed down as a prop
+      // fetchBoard()
     }
   }
 

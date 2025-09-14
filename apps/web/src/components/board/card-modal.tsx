@@ -104,6 +104,7 @@ export function CardModal({ card, isOpen, onClose, onUpdate }: CardModalProps) {
         const availableMembers: AvailableMember[] = members.map(member => ({
           id: member.id,
           name: member.name,
+          surname: member.surname || '',
           email: member.email,
           position: member.position || 'Employee',
           avatar: member.avatar || ''
@@ -192,7 +193,7 @@ export function CardModal({ card, isOpen, onClose, onUpdate }: CardModalProps) {
                       <Input
                         value={title}
                         onChange={(e) => setTitle(e.target.value)}
-                        className="text-xl font-semibold"
+                        className="text-xl font-semibold border-2 border-blue-300 focus:border-blue-500 bg-white shadow-sm"
                         placeholder="Card title..."
                         autoFocus
                       />
@@ -223,9 +224,12 @@ export function CardModal({ card, isOpen, onClose, onUpdate }: CardModalProps) {
                       className="cursor-pointer group"
                       onClick={() => setIsEditingTitle(true)}
                     >
-                      <h2 className="text-xl font-semibold text-gray-900 mb-2 group-hover:bg-gray-50 p-2 rounded">
-                        {title}
-                      </h2>
+                      <div className="border-2 border-transparent group-hover:border-gray-300 rounded-lg p-3 bg-gray-50 group-hover:bg-white transition-all duration-200">
+                        <h2 className="text-xl font-semibold text-gray-900 mb-2">
+                          {title || "Card title..."}
+                        </h2>
+                        <p className="text-sm text-gray-500">Click to edit title</p>
+                      </div>
                     </div>
                   )}
                   <p className="text-sm text-gray-600">
@@ -402,8 +406,40 @@ export function CardModal({ card, isOpen, onClose, onUpdate }: CardModalProps) {
               </div>
             </div>
 
-            {/* Sidebar - Add to card */}
+            {/* Sidebar - Current members and Add to card */}
             <div className="space-y-4">
+              {/* Current Members */}
+              {card.members && card.members.length > 0 && (
+                <div>
+                  <h3 className="font-semibold text-gray-900 mb-3">Members</h3>
+                  <div className="space-y-2">
+                    {card.members.map((member, index) => (
+                      <div key={index} className="flex items-center justify-between bg-gray-50 rounded-lg p-2">
+                        <div className="flex items-center space-x-2">
+                          <Avatar className="w-6 h-6">
+                            <AvatarFallback className="bg-blue-500 text-white text-xs">
+                              {member.charAt(0).toUpperCase()}
+                            </AvatarFallback>
+                          </Avatar>
+                          <span className="text-sm font-medium">{member}</span>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 w-6 p-0 hover:bg-gray-200"
+                          onClick={() => {
+                            const newMembers = (card.members || []).filter((_, i) => i !== index)
+                            onUpdate?.({ ...card, members: newMembers })
+                          }}
+                        >
+                          <X className="w-3 h-3" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               <div>
                 <h3 className="font-semibold text-gray-900 mb-3">Add to card</h3>
                 <div className="space-y-2">
@@ -429,7 +465,18 @@ export function CardModal({ card, isOpen, onClose, onUpdate }: CardModalProps) {
                           </div>
                         ) : (
                           availableMembers.map((member) => (
-                            <DropdownMenuItem key={member.id} className="flex items-center space-x-2">
+                            <DropdownMenuItem 
+                              key={member.id} 
+                              className="flex items-center space-x-2"
+                              onClick={() => {
+                                // Add member to card
+                                const currentMembers = card.members || []
+                                if (!currentMembers.includes(member.name)) {
+                                  const newMembers = [...currentMembers, member.name]
+                                  onUpdate?.({ ...card, members: newMembers })
+                                }
+                              }}
+                            >
                               <Avatar className="w-6 h-6">
                                 <AvatarFallback className="bg-blue-500 text-white text-xs">
                                   {member.name?.charAt(0) || 'U'}

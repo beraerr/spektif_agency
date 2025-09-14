@@ -6,7 +6,7 @@ import { CSS } from '@dnd-kit/utilities'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
-import { Calendar, MessageSquare, Paperclip } from 'lucide-react'
+import { Calendar, MessageSquare, Paperclip, Clock } from 'lucide-react'
 
 export interface CardData {
   id: string
@@ -105,23 +105,19 @@ export function DraggableCard({ card, onClick }: DraggableCardProps) {
           </p>
         )}
 
+        {/* Due Date */}
+        {card.dueDate && (
+          <div className="flex items-center text-xs text-gray-500 dark:text-gray-400 mb-2">
+            <Clock className="w-3 h-3 mr-1" />
+            <span className={getDueDateColor(card.dueDate)}>
+              {new Date(card.dueDate).toLocaleDateString('tr-TR')}
+            </span>
+          </div>
+        )}
+
         {/* Card Footer */}
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-2">
-            {/* Due Date */}
-            {card.dueDate && (
-              <div className={`flex items-center text-xs px-1.5 py-0.5 rounded ${
-                isOverdue(card.dueDate) ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300' : 
-                getDueDateColor(card.dueDate).includes('orange') ? 'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300' :
-                'bg-gray-100 dark:bg-gray-600 text-gray-600 dark:text-gray-300'
-              }`}>
-                <Calendar className="w-3 h-3 mr-1" />
-                {new Date(card.dueDate).toLocaleDateString('en-US', {
-                  month: 'short',
-                  day: 'numeric'
-                })}
-              </div>
-            )}
 
             {/* Attachments */}
             {card.attachments && card.attachments > 0 && (

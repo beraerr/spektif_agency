@@ -95,13 +95,13 @@ export default function BoardPage() {
     const handleRealtimeCardUpdate = (event: CustomEvent) => {
       console.log('🔄 Real-time card update received:', event.detail)
       // Refresh board data when real-time updates are received
-      window.location.reload() // Simple refresh for now
+      fetchBoard() // Use proper state update instead of reload
     }
 
     const handleRealtimeListUpdate = (event: CustomEvent) => {
       console.log('📝 Real-time list update received:', event.detail)
       // Refresh board data when real-time updates are received
-      window.location.reload() // Simple refresh for now
+      fetchBoard() // Use proper state update instead of reload
     }
 
     window.addEventListener('realtime-card-updated', handleRealtimeCardUpdate as EventListener)
