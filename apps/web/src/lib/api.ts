@@ -233,6 +233,7 @@ class ApiClient {
   }
 
   async createCard(data: {
+    boardId: string
     listId: string
     title: string
     description?: string

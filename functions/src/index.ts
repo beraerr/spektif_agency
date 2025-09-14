@@ -582,23 +582,26 @@ export const getCards = onRequest(
     try {
       const { listId, boardId, userId } = req.query;
 
-      let query: any = db.collection('cards');
+      if (boardId) {
+        // Get all cards for a board
+        const cardsSnapshot = await db.collection('boards')
+          .doc(boardId as string)
+          .collection('cards')
+          .get();
 
-      if (listId) {
-        query = query.where('listId', '==', listId);
-      } else if (boardId) {
-        query = query.where('boardId', '==', boardId);
-      } else if (userId) {
-        query = query.where('assignedTo', 'array-contains', userId);
+        const cards = cardsSnapshot.docs.map((doc: any) => ({
+          id: doc.id,
+          ...doc.data()
+        }));
+
+        return res.json(cards);
+      } else if (listId) {
+        // Get cards for a specific list - need to find boardId first
+        // This is complex, so we'll require boardId for now
+        return res.status(400).json({ error: 'Board ID is required when filtering by list ID' });
+      } else {
+        return res.status(400).json({ error: 'Board ID is required' });
       }
-
-      const cardsSnapshot = await query.get();
-      const cards = cardsSnapshot.docs.map((doc: any) => ({
-        id: doc.id,
-        ...doc.data()
-      }));
-
-      return res.json(cards);
     } catch (error) {
       logger.error('Get cards error:', error);
       return res.status(500).json({ error: 'Internal server error' });
@@ -1077,3 +1080,160 @@ export const seedDatabase = onRequest(
     }
   });
 });
+
+// ============================================================================
+// MISSING ENDPOINTS
+// ============================================================================
+
+export const deleteList = onRequest(
+  { 
+    cors: true,
+    invoker: "public"
+  },
+  async (req: Request, res: Response) => {
+    return cors(req, res, async () => {
+      try {
+        const { listId } = req.body;
+
+        if (!listId) {
+          return res.status(400).json({ error: 'List ID is required' });
+        }
+
+        // Delete all cards in the list first
+        const cardsSnapshot = await db.collectionGroup('cards')
+          .where('listId', '==', listId)
+          .get();
+
+        const batch = db.batch();
+        cardsSnapshot.docs.forEach(doc => {
+          batch.delete(doc.ref);
+        });
+        await batch.commit();
+
+        // Delete the list
+        const listQuery = await db.collectionGroup('lists')
+          .where('__name__', '==', listId)
+          .get();
+
+        if (listQuery.empty) {
+          return res.status(404).json({ error: 'List not found' });
+        }
+
+        await listQuery.docs[0].ref.delete();
+
+        return res.json({ success: true });
+      } catch (error) {
+        console.error('Delete list error:', error);
+        return res.status(500).json({ error: 'Internal server error' });
+      }
+    });
+  }
+);
+
+export const deleteCard = onRequest(
+  { 
+    cors: true,
+    invoker: "public"
+  },
+  async (req: Request, res: Response) => {
+    return cors(req, res, async () => {
+      try {
+        const { cardId } = req.body;
+
+        if (!cardId) {
+          return res.status(400).json({ error: 'Card ID is required' });
+        }
+
+        // Find and delete the card
+        const cardQuery = await db.collectionGroup('cards')
+          .where('__name__', '==', cardId)
+          .get();
+
+        if (cardQuery.empty) {
+          return res.status(404).json({ error: 'Card not found' });
+        }
+
+        await cardQuery.docs[0].ref.delete();
+
+        return res.json({ success: true });
+      } catch (error) {
+        console.error('Delete card error:', error);
+        return res.status(500).json({ error: 'Internal server error' });
+      }
+    });
+  }
+);
+
+export const moveCard = onRequest(
+  { 
+    cors: true,
+    invoker: "public"
+  },
+  async (req: Request, res: Response) => {
+    return cors(req, res, async () => {
+      try {
+        const { cardId, listId, position } = req.body;
+
+        if (!cardId || !listId || position === undefined) {
+          return res.status(400).json({ error: 'Card ID, List ID, and position are required' });
+        }
+
+        // Find the card
+        const cardQuery = await db.collectionGroup('cards')
+          .where('__name__', '==', cardId)
+          .get();
+
+        if (cardQuery.empty) {
+          return res.status(404).json({ error: 'Card not found' });
+        }
+
+        const cardRef = cardQuery.docs[0].ref;
+        await cardRef.update({
+          listId,
+          position,
+          updatedAt: admin.firestore.FieldValue.serverTimestamp()
+        });
+
+        return res.json({ success: true });
+      } catch (error) {
+        console.error('Move card error:', error);
+        return res.status(500).json({ error: 'Internal server error' });
+      }
+    });
+  }
+);
+
+export const reorderLists = onRequest(
+  { 
+    cors: true,
+    invoker: "public"
+  },
+  async (req: Request, res: Response) => {
+    return cors(req, res, async () => {
+      try {
+        const { boardId, listOrders } = req.body;
+
+        if (!boardId || !listOrders || !Array.isArray(listOrders)) {
+          return res.status(400).json({ error: 'Board ID and list orders are required' });
+        }
+
+        const batch = db.batch();
+        
+        for (const { id, position } of listOrders) {
+          const listRef = db.collection('boards').doc(boardId).collection('lists').doc(id);
+          batch.update(listRef, {
+            position,
+            updatedAt: admin.firestore.FieldValue.serverTimestamp()
+          });
+        }
+
+        await batch.commit();
+
+        return res.json({ success: true });
+      } catch (error) {
+        console.error('Reorder lists error:', error);
+        return res.status(500).json({ error: 'Internal server error' });
+      }
+    });
+  }
+);

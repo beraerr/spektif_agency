@@ -113,6 +113,7 @@ export function useBoard(boardId: string) {
 
     try {
       const newCard = await apiClient.createCard({
+        boardId: board.id,
         listId,
         ...data
       }) as any
