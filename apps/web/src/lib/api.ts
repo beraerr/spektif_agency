@@ -134,7 +134,7 @@ class ApiClient {
   }
 
   async getBoard(boardId: string) {
-    return this.request(`/getBoards?boardId=${boardId}`)
+    return this.request(`/getBoard?boardId=${boardId}`)
   }
 
   async createBoard(data: {

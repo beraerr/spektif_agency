@@ -128,6 +128,73 @@ export const login = onRequest(
 // BOARDS ENDPOINTS
 // ============================================================================
 
+export const getBoard = onRequest(
+  { 
+    cors: true,
+    invoker: "public"
+  },
+  async (req: Request, res: Response) => {
+    return cors(req, res, async () => {
+      try {
+        const { boardId } = req.query;
+
+        if (!boardId) {
+          return res.status(400).json({ error: 'Board ID is required' });
+        }
+
+        const boardDoc = await db.collection('boards').doc(boardId as string).get();
+        
+        if (!boardDoc.exists) {
+          return res.status(404).json({ error: 'Board not found' });
+        }
+
+        const boardData = boardDoc.data();
+        
+        // Get lists for the board
+        const listsSnapshot = await db.collection('boards')
+          .doc(boardId as string)
+          .collection('lists')
+          .orderBy('position', 'asc')
+          .get();
+
+        const lists = [];
+        for (const listDoc of listsSnapshot.docs) {
+          const listData = listDoc.data();
+          
+          // Get cards for each list
+          const cardsSnapshot = await db.collection('boards')
+            .doc(boardId as string)
+            .collection('cards')
+            .where('listId', '==', listDoc.id)
+            .get();
+
+          const cards = cardsSnapshot.docs
+            .map(cardDoc => ({
+              id: cardDoc.id,
+              ...cardDoc.data()
+            }))
+            .sort((a: any, b: any) => (a.position || 0) - (b.position || 0));
+
+          lists.push({
+            id: listDoc.id,
+            ...listData,
+            cards
+          });
+        }
+
+        return res.json({
+          id: boardDoc.id,
+          ...boardData,
+          lists
+        });
+      } catch (error) {
+        console.error('Get board error:', error);
+        return res.status(500).json({ error: 'Internal server error' });
+      }
+    });
+  }
+);
+
 export const getBoards = onRequest(
   { 
     cors: true,
@@ -206,7 +273,7 @@ export const createBoard = onRequest(
   async (req: Request, res: Response) => {
   return cors(req, res, async () => {
     try {
-      const { title, description, organizationId, userId } = req.body;
+      const { title, description, organizationId, userId, color } = req.body;
 
       if (!title || !userId) {
         return res.status(400).json({ error: 'Title and user ID are required' });
@@ -216,6 +283,7 @@ export const createBoard = onRequest(
         title,
         description: description || '',
         organizationId: organizationId || '',
+        color: color || '#3B82F6',
         members: [userId],
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
         updatedAt: admin.firestore.FieldValue.serverTimestamp()
