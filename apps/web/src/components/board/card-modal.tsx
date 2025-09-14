@@ -524,7 +524,7 @@ export function CardModal({ card, isOpen, onClose, onUpdate }: CardModalProps) {
               ...card,
               dueDate: date.toISOString()
             }
-            onUpdate(updatedCard)
+            onUpdate?.(updatedCard)
           }}
           currentDate={cardDueDate}
         />
