@@ -285,6 +285,21 @@ class ApiClient {
     })
   }
 
+  async updateBoardBackground(boardId: string, backgroundUrl: string) {
+    return this.request('/updateBoardBackground', {
+      method: 'POST',
+      body: JSON.stringify({ boardId, backgroundUrl }),
+    })
+  }
+
+  async getCalendarEvents(boardId: string, startDate?: string, endDate?: string) {
+    const params = new URLSearchParams({ boardId })
+    if (startDate) params.append('startDate', startDate)
+    if (endDate) params.append('endDate', endDate)
+    
+    return this.request(`/getCalendarEvents?${params.toString()}`)
+  }
+
   // NOTE: Chat and available members endpoints not implemented yet
   // TODO: Implement when needed:
   // - getAvailableMembers(cardId)

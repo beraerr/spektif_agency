@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
+import { useBoardBackground } from '@/hooks/use-board-background'
 import { 
   TrendingUp, 
   TrendingDown, 
@@ -207,18 +208,7 @@ export default function BoardAccountingPage() {
   const [filterType, setFilterType] = useState<'all' | 'income' | 'expense'>('all')
   const [filterStatus, setFilterStatus] = useState<'all' | 'pending' | 'completed'>('all')
   const [searchTerm, setSearchTerm] = useState('')
-  const [boardBackground, setBoardBackground] = useState<string>('')
-
-  // Load board background
-  useEffect(() => {
-    const saved = localStorage.getItem('boardBackgrounds')
-    if (saved) {
-      const backgrounds = JSON.parse(saved) as Record<string, string>
-      const boardIdStr = Array.isArray(boardId) ? boardId[0] : boardId
-      setBoardBackground(backgrounds[boardIdStr] || '')
-    }
-  }, [boardId])
-
+  const { boardBackground } = useBoardBackground(boardId as string)
   useEffect(() => {
     let filtered = transactions
 

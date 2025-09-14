@@ -1070,6 +1070,54 @@ export const seedDatabase = onRequest(
       }
       console.log('✅ Sample employees created');
 
+      // Create sample clients
+      const clients = [
+        {
+          id: 'client-1',
+          name: 'Acme Corporation',
+          email: 'contact@acme.com',
+          phone: '+90 555 111 2233',
+          company: 'Acme Corporation',
+          address: 'İstanbul, Türkiye',
+          notes: 'Ana müşteri - web tasarım projeleri',
+          status: 'active',
+          organizationId: 'spektif',
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+          updatedAt: admin.firestore.FieldValue.serverTimestamp()
+        },
+        {
+          id: 'client-2',
+          name: 'TechStart Inc',
+          email: 'info@techstart.com',
+          phone: '+90 555 444 5566',
+          company: 'TechStart Inc',
+          address: 'Ankara, Türkiye',
+          notes: 'Yeni müşteri - mobil uygulama geliştirme',
+          status: 'active',
+          organizationId: 'spektif',
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+          updatedAt: admin.firestore.FieldValue.serverTimestamp()
+        },
+        {
+          id: 'client-3',
+          name: 'Design Studio',
+          email: 'hello@designstudio.com',
+          phone: '+90 555 777 8899',
+          company: 'Design Studio',
+          address: 'İzmir, Türkiye',
+          notes: 'Tasarım odaklı projeler',
+          status: 'inactive',
+          organizationId: 'spektif',
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+          updatedAt: admin.firestore.FieldValue.serverTimestamp()
+        }
+      ];
+
+      for (const client of clients) {
+        await db.collection('clients').doc(client.id).set(client);
+      }
+      console.log('✅ Sample clients created');
+
       return res.json({
         success: true,
         message: 'Database seeded successfully!',
@@ -1078,7 +1126,8 @@ export const seedDatabase = onRequest(
           organizations: 1,
           boards: 1,
           lists: 3,
-          cards: 3
+          cards: 3,
+          clients: 3
         }
       });
 
@@ -1255,3 +1304,73 @@ export const reorderLists = onRequest(
     });
   }
 );
+
+export const updateBoardBackground = onRequest(
+  { 
+    cors: true,
+    invoker: "public"
+  },
+  async (req: Request, res: Response) => {
+  return cors(req, res, async () => {
+    try {
+      const { boardId, backgroundUrl } = req.body;
+
+      if (!boardId || !backgroundUrl) {
+        return res.status(400).json({ error: 'Board ID and background URL are required' });
+      }
+
+      await db.collection('boards').doc(boardId).update({
+        backgroundUrl,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp()
+      });
+
+      return res.json({ success: true });
+    } catch (error) {
+      logger.error('Update board background error:', error);
+      return res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+});
+
+export const getCalendarEvents = onRequest(
+  { 
+    cors: true,
+    invoker: "public"
+  },
+  async (req: Request, res: Response) => {
+  return cors(req, res, async () => {
+    try {
+      const { boardId, startDate, endDate } = req.query;
+
+      if (!boardId) {
+        return res.status(400).json({ error: 'Board ID is required' });
+      }
+
+      // Get all cards with due dates
+      const cardsSnapshot = await db.collection('boards')
+        .doc(boardId as string)
+        .collection('cards')
+        .where('dueDate', '!=', null)
+        .get();
+
+      const events = cardsSnapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          title: data.title,
+          description: data.description,
+          dueDate: data.dueDate,
+          listId: data.listId,
+          boardId: boardId,
+          members: data.members || [],
+          priority: data.priority || 'medium'
+        };
+      });
+
+      return res.json(events);
+    } catch (error) {
+      logger.error('Get calendar events error:', error);
+      return res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+});

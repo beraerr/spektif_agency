@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Clock, Plus, X, CheckCircle2, AlertCircle } from 'lucide-react'
+import { useBoardBackground } from '@/hooks/use-board-background'
 
 interface CalendarEvent {
   id: string
@@ -134,17 +135,7 @@ export default function BoardCalendarPage() {
   const [newTaskType, setNewTaskType] = useState<'deadline' | 'note' | 'task'>('task')
   const [newTaskTitle, setNewTaskTitle] = useState('')
   const [newTaskDescription, setNewTaskDescription] = useState('')
-  const [boardBackground, setBoardBackground] = useState<string>('')
-
-  // Load board background
-  useEffect(() => {
-    const saved = localStorage.getItem('boardBackgrounds')
-    if (saved) {
-      const backgrounds = JSON.parse(saved) as Record<string, string>
-      const boardIdStr = Array.isArray(boardId) ? boardId[0] : boardId
-      setBoardBackground(backgrounds[boardIdStr] || '')
-    }
-  }, [boardId])
+  const { boardBackground } = useBoardBackground(boardId as string)
 
   const today = new Date()
   const currentMonth = currentDate.getMonth()

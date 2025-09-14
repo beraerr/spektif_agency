@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Inbox, Mail, Search, Filter, MoreHorizontal, Clock, Users, Calendar } from 'lucide-react'
+import { useBoardBackground } from '@/hooks/use-board-background'
 
 interface Notification {
   id: string
@@ -118,18 +119,7 @@ export default function BoardInboxPage() {
   const [notifications, setNotifications] = useState(mockNotifications)
   const [searchTerm, setSearchTerm] = useState('')
   const [activeTab, setActiveTab] = useState('all')
-  const [boardBackground, setBoardBackground] = useState<string>('')
-
-  // Load board background
-  useEffect(() => {
-    const saved = localStorage.getItem('boardBackgrounds')
-    if (saved) {
-      const backgrounds = JSON.parse(saved) as Record<string, string>
-      const boardIdStr = Array.isArray(boardId) ? boardId[0] : boardId
-      setBoardBackground(backgrounds[boardIdStr] || '')
-    }
-  }, [boardId])
-
+  const { boardBackground } = useBoardBackground(boardId as string)
   const unreadCount = notifications.filter(n => !n.read).length
   
   const filteredNotifications = notifications.filter(notification => {

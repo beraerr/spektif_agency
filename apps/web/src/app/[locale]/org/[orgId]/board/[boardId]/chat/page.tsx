@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Send, Paperclip, Smile, Phone, Video, Search, MoreVertical, User } from 'lucide-react'
+import { useBoardBackground } from '@/hooks/use-board-background'
 
 interface ChatMessage {
   id: string
@@ -154,19 +155,9 @@ export default function BoardChatPage() {
   const { messages, participants, loading, setMessages } = useBoardChat(boardId as string)
   const [newMessage, setNewMessage] = useState('')
   const [isTyping, setIsTyping] = useState(false)
-  const [boardBackground, setBoardBackground] = useState<string>('')
+  const { boardBackground } = useBoardBackground(boardId as string)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const { data: session } = useSession()
-
-  // Load board background
-  useEffect(() => {
-    const saved = localStorage.getItem('boardBackgrounds')
-    if (saved) {
-      const backgrounds = JSON.parse(saved) as Record<string, string>
-      const boardIdStr = Array.isArray(boardId) ? boardId[0] : boardId
-      setBoardBackground(backgrounds[boardIdStr] || '')
-    }
-  }, [boardId])
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
