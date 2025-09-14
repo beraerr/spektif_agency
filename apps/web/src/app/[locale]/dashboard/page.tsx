@@ -44,6 +44,11 @@ export default function DashboardPage() {
 
   const isAdmin = (session as any)?.user?.role === 'ADMIN'
   const isEmployee = (session as any)?.user?.role === 'EMPLOYEE' || (session as any)?.user?.role === 'ACCOUNTANT'
+  
+  // Debug logs
+  console.log('🔍 Session Debug:', session)
+  console.log('🔍 User Role:', (session as any)?.user?.role)
+  console.log('🔍 isAdmin:', isAdmin)
 
   // Show employee dashboard for employees
   if (isEmployee) {

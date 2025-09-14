@@ -54,6 +54,7 @@ export const authOptions: NextAuthOptions = {
               name: data.user.name,
               image: null,
               // Store additional data
+              role: data.user.role || 'ADMIN', // Add role with fallback
               organizations: data.organizations || [],
               token: data.token,
               backendToken: data.user.backendToken || data.token
@@ -75,7 +76,7 @@ export const authOptions: NextAuthOptions = {
     async jwt({ token, user }) {
       if (user) {
         token.id = user.id
-        token.role = (user as any).role
+        token.role = (user as any).role || 'ADMIN' // Add fallback
         token.organizations = (user as any).organizations
         token.backendToken = (user as any).token
       }
