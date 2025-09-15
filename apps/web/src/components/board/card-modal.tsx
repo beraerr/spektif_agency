@@ -459,13 +459,22 @@ export function CardModal({ card, isOpen, onClose, onUpdate, boardId }: CardModa
                           className="h-6 w-6 p-0 hover:bg-gray-200"
                           onClick={async () => {
                             try {
-                              await apiClient.removeCardMember(card.id, boardId || '', member)
                               const newMembers = (card.members || []).filter((_, i) => i !== index)
-                              onUpdate?.({ ...card, members: newMembers })
+                              const updatedCard = { ...card, members: newMembers }
+                              
+                              // Update UI immediately
+                              onUpdate?.(updatedCard)
+                              
+                              // Save to backend
+                              await apiClient.updateCard(card.id, {
+                                members: newMembers
+                              })
                               toast.success('Member removed successfully!')
                             } catch (error) {
                               console.error('Failed to remove member:', error)
                               toast.error('Failed to remove member')
+                              // Revert UI change on error
+                              onUpdate?.(card)
                             }
                           }}
                         >
@@ -507,16 +516,26 @@ export function CardModal({ card, isOpen, onClose, onUpdate, boardId }: CardModa
                               className="flex items-center space-x-2"
                               onClick={async () => {
                                 try {
-                                  await apiClient.addCardMember(card.id, boardId || '', member.name, member.email)
                                   const currentMembers = card.members || []
-                                  if (!currentMembers.includes(member.name)) {
-                                    const newMembers = [...currentMembers, member.name]
-                                    onUpdate?.({ ...card, members: newMembers })
+                                  const memberName = `${member.name} ${member.surname}`.trim()
+                                  if (!currentMembers.includes(memberName)) {
+                                    const newMembers = [...currentMembers, memberName]
+                                    const updatedCard = { ...card, members: newMembers }
+                                    
+                                    // Update UI immediately
+                                    onUpdate?.(updatedCard)
+                                    
+                                    // Save to backend
+                                    await apiClient.updateCard(card.id, {
+                                      members: newMembers
+                                    })
                                     toast.success('Member added successfully!')
                                   }
                                 } catch (error) {
                                   console.error('Failed to add member:', error)
                                   toast.error('Failed to add member')
+                                  // Revert UI change on error
+                                  onUpdate?.(card)
                                 }
                               }}
                             >
@@ -645,10 +664,7 @@ export function CardModal({ card, isOpen, onClose, onUpdate, boardId }: CardModa
               // Upload file to get attachment ID
               const uploadResult = await apiClient.uploadFile(boardId, card.id, file)
               
-              // Update card with new attachment
-              await apiClient.updateCardAttachments(card.id, boardId, uploadResult.id)
-              
-              // Update local state
+              // Create new attachment object
               const newAttachment = {
                 id: uploadResult.id,
                 name: uploadResult.fileName,
@@ -658,22 +674,67 @@ export function CardModal({ card, isOpen, onClose, onUpdate, boardId }: CardModa
                 uploadedAt: new Date().toISOString()
               }
               
+              // Update card with new attachment
+              const currentAttachments = card.attachments || []
+              const updatedAttachments = [...currentAttachments, newAttachment]
               const updatedCard = {
                 ...card,
-                attachments: [...(card.attachments || []), newAttachment]
+                attachments: updatedAttachments
               }
               
+              // Update UI immediately
               onUpdate?.(updatedCard)
+              
+              // Save to backend
+              await apiClient.updateCard(card.id, {
+                attachments: updatedAttachments
+              })
+              
               toast.success('File uploaded successfully!')
             } catch (error) {
               console.error('Failed to upload file:', error)
               toast.error('Failed to upload file')
+              // Revert UI change on error
+              onUpdate?.(card)
             }
           }}
-          onAddLink={(url, displayText) => {
-            // Handle link attachment logic here
-            console.log('Add link:', url, displayText)
-            // TODO: Update card with new link attachment
+          onAddLink={async (url, displayText) => {
+            try {
+              if (!card) return
+              
+              // Create new link attachment
+              const newAttachment = {
+                id: Date.now().toString(),
+                name: displayText || url,
+                url: url,
+                size: 0,
+                mimeType: 'link',
+                uploadedAt: new Date().toISOString()
+              }
+              
+              // Update card with new attachment
+              const currentAttachments = card.attachments || []
+              const updatedAttachments = [...currentAttachments, newAttachment]
+              const updatedCard = {
+                ...card,
+                attachments: updatedAttachments
+              }
+              
+              // Update UI immediately
+              onUpdate?.(updatedCard)
+              
+              // Save to backend
+              await apiClient.updateCard(card.id, {
+                attachments: updatedAttachments
+              })
+              
+              toast.success('Link added successfully!')
+            } catch (error) {
+              console.error('Failed to add link:', error)
+              toast.error('Failed to add link')
+              // Revert UI change on error
+              onUpdate?.(card)
+            }
           }}
           boardId={boardId}
           cardId={card?.id}
