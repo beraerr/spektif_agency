@@ -90,6 +90,9 @@ export function CardModal({ card, isOpen, onClose, onUpdate, boardId }: CardModa
   const [cardDueDate, setCardDueDate] = useState<Date | undefined>(
     card?.dueDate ? new Date(card.dueDate) : undefined
   )
+  const [newMemberName, setNewMemberName] = useState('')
+  const [newMemberEmail, setNewMemberEmail] = useState('')
+  const [isAddingMember, setIsAddingMember] = useState(false)
   const [availableMembers, setAvailableMembers] = useState<AvailableMember[]>([])
   const [isLoadingMembers, setIsLoadingMembers] = useState(false)
 
@@ -353,9 +356,23 @@ export function CardModal({ card, isOpen, onClose, onUpdate, boardId }: CardModa
                             <DropdownMenuItem onClick={() => window.open(attachment.url, '_blank')}>
                               Download
                             </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => {
-                              // TODO: Remove attachment logic
-                              console.log('Remove attachment:', attachment.id)
+                            <DropdownMenuItem onClick={async () => {
+                              try {
+                                if (!card || !boardId) return
+                                
+                                await apiClient.removeCardAttachment(card.id, boardId, attachment.id)
+                                
+                                const updatedCard = {
+                                  ...card,
+                                  attachments: card.attachments?.filter(att => att.id !== attachment.id) || []
+                                }
+                                
+                                onUpdate?.(updatedCard)
+                                toast.success('Attachment removed successfully!')
+                              } catch (error) {
+                                console.error('Failed to remove attachment:', error)
+                                toast.error('Failed to remove attachment')
+                              }
                             }}>
                               Remove
                             </DropdownMenuItem>
@@ -440,9 +457,16 @@ export function CardModal({ card, isOpen, onClose, onUpdate, boardId }: CardModa
                           variant="ghost"
                           size="sm"
                           className="h-6 w-6 p-0 hover:bg-gray-200"
-                          onClick={() => {
-                            const newMembers = (card.members || []).filter((_, i) => i !== index)
-                            onUpdate?.({ ...card, members: newMembers })
+                          onClick={async () => {
+                            try {
+                              await apiClient.removeCardMember(card.id, boardId || '', member)
+                              const newMembers = (card.members || []).filter((_, i) => i !== index)
+                              onUpdate?.({ ...card, members: newMembers })
+                              toast.success('Member removed successfully!')
+                            } catch (error) {
+                              console.error('Failed to remove member:', error)
+                              toast.error('Failed to remove member')
+                            }
                           }}
                         >
                           <X className="w-3 h-3" />
@@ -481,12 +505,18 @@ export function CardModal({ card, isOpen, onClose, onUpdate, boardId }: CardModa
                             <DropdownMenuItem 
                               key={member.id} 
                               className="flex items-center space-x-2"
-                              onClick={() => {
-                                // Add member to card
-                                const currentMembers = card.members || []
-                                if (!currentMembers.includes(member.name)) {
-                                  const newMembers = [...currentMembers, member.name]
-                                  onUpdate?.({ ...card, members: newMembers })
+                              onClick={async () => {
+                                try {
+                                  await apiClient.addCardMember(card.id, boardId || '', member.name, member.email)
+                                  const currentMembers = card.members || []
+                                  if (!currentMembers.includes(member.name)) {
+                                    const newMembers = [...currentMembers, member.name]
+                                    onUpdate?.({ ...card, members: newMembers })
+                                    toast.success('Member added successfully!')
+                                  }
+                                } catch (error) {
+                                  console.error('Failed to add member:', error)
+                                  toast.error('Failed to add member')
                                 }
                               }}
                             >
@@ -608,10 +638,37 @@ export function CardModal({ card, isOpen, onClose, onUpdate, boardId }: CardModa
         <AttachmentModal
           isOpen={showAttachmentModal}
           onClose={() => setShowAttachmentModal(false)}
-          onUpload={(file, displayText) => {
-            // Handle file upload logic here
-            console.log('Upload file:', file, displayText)
-            // TODO: Update card with new attachment
+          onUpload={async (file, displayText) => {
+            try {
+              if (!card || !boardId) return
+              
+              // Upload file to get attachment ID
+              const uploadResult = await apiClient.uploadFile(boardId, card.id, file)
+              
+              // Update card with new attachment
+              await apiClient.updateCardAttachments(card.id, boardId, uploadResult.id)
+              
+              // Update local state
+              const newAttachment = {
+                id: uploadResult.id,
+                name: uploadResult.fileName,
+                url: uploadResult.url,
+                size: uploadResult.size,
+                mimeType: uploadResult.mimeType,
+                uploadedAt: new Date().toISOString()
+              }
+              
+              const updatedCard = {
+                ...card,
+                attachments: [...(card.attachments || []), newAttachment]
+              }
+              
+              onUpdate?.(updatedCard)
+              toast.success('File uploaded successfully!')
+            } catch (error) {
+              console.error('Failed to upload file:', error)
+              toast.error('Failed to upload file')
+            }
           }}
           onAddLink={(url, displayText) => {
             // Handle link attachment logic here

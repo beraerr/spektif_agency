@@ -3,6 +3,7 @@ import { onRequest } from "firebase-functions/v2/https";
 import * as logger from "firebase-functions/logger";
 import * as admin from "firebase-admin";
 import { getFirestore } from "firebase-admin/firestore";
+import { getStorage } from "firebase-admin/storage";
 import { Request, Response } from "express";
 
 // Initialize Firebase Admin with NEW service account key
@@ -44,8 +45,8 @@ qZ1DMDWJHOVMxQiKssl7NHIM
 
 // CLEAN SETUP: USE SPEKTIF DATABASE ONLY
 const db = getFirestore(admin.app(), "spektif");
+const storage = getStorage(admin.app());
 console.log("🔥 CLEAN SETUP: USING SPEKTIF DATABASE");
-const storage = admin.storage();
 
 // Set global options for cost control and region
 setGlobalOptions({ 
@@ -1371,6 +1372,299 @@ export const getCalendarEvents = onRequest(
       return res.json(events);
     } catch (error) {
       logger.error('Get calendar events error:', error);
+      return res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+});
+
+// ============================================================================
+// CARD MEMBER MANAGEMENT ENDPOINTS
+// ============================================================================
+
+export const addCardMember = onRequest(
+  { 
+    cors: true,
+    invoker: "public"
+  },
+  async (req: Request, res: Response) => {
+  return cors(req, res, async () => {
+    try {
+      const { cardId, boardId, memberName, memberEmail } = req.body;
+
+      if (!cardId || !boardId || !memberName) {
+        return res.status(400).json({ error: 'Card ID, Board ID, and member name are required' });
+      }
+
+      // Find the card
+      const boardsSnapshot = await db.collection('boards').get();
+      let cardRef = null;
+      
+      for (const boardDoc of boardsSnapshot.docs) {
+        const cardDoc = await boardDoc.ref.collection('cards').doc(cardId).get();
+        if (cardDoc.exists) {
+          cardRef = cardDoc.ref;
+          break;
+        }
+      }
+
+      if (!cardRef) {
+        return res.status(404).json({ error: 'Card not found' });
+      }
+
+      const cardData = (await cardRef.get()).data();
+      const currentMembers = cardData?.members || [];
+      
+      // Check if member already exists
+      const memberExists = currentMembers.some((member: any) => 
+        member.name === memberName || member.email === memberEmail
+      );
+
+      if (memberExists) {
+        return res.status(400).json({ error: 'Member already exists on this card' });
+      }
+
+      // Add new member
+      const newMember = {
+        name: memberName,
+        email: memberEmail || '',
+        addedAt: admin.firestore.FieldValue.serverTimestamp()
+      };
+
+      const updatedMembers = [...currentMembers, newMember];
+
+      await cardRef.update({
+        members: updatedMembers,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp()
+      });
+
+      return res.json({ 
+        success: true, 
+        member: newMember,
+        totalMembers: updatedMembers.length
+      });
+    } catch (error) {
+      logger.error('Add card member error:', error);
+      return res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+});
+
+export const removeCardMember = onRequest(
+  { 
+    cors: true,
+    invoker: "public"
+  },
+  async (req: Request, res: Response) => {
+  return cors(req, res, async () => {
+    try {
+      const { cardId, boardId, memberName } = req.body;
+
+      if (!cardId || !boardId || !memberName) {
+        return res.status(400).json({ error: 'Card ID, Board ID, and member name are required' });
+      }
+
+      // Find the card
+      const boardsSnapshot = await db.collection('boards').get();
+      let cardRef = null;
+      
+      for (const boardDoc of boardsSnapshot.docs) {
+        const cardDoc = await boardDoc.ref.collection('cards').doc(cardId).get();
+        if (cardDoc.exists) {
+          cardRef = cardDoc.ref;
+          break;
+        }
+      }
+
+      if (!cardRef) {
+        return res.status(404).json({ error: 'Card not found' });
+      }
+
+      const cardData = (await cardRef.get()).data();
+      const currentMembers = cardData?.members || [];
+      
+      // Remove member
+      const updatedMembers = currentMembers.filter((member: any) => member.name !== memberName);
+
+      await cardRef.update({
+        members: updatedMembers,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp()
+      });
+
+      return res.json({ 
+        success: true, 
+        totalMembers: updatedMembers.length
+      });
+    } catch (error) {
+      logger.error('Remove card member error:', error);
+      return res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+});
+
+// ============================================================================
+// CARD ATTACHMENT MANAGEMENT ENDPOINTS
+// ============================================================================
+
+export const getCardAttachments = onRequest(
+  { 
+    cors: true,
+    invoker: "public"
+  },
+  async (req: Request, res: Response) => {
+  return cors(req, res, async () => {
+    try {
+      const { cardId, boardId } = req.query;
+
+      if (!cardId || !boardId) {
+        return res.status(400).json({ error: 'Card ID and Board ID are required' });
+      }
+
+      // Get attachments for the specific card
+      const attachmentsSnapshot = await db.collection('files')
+        .where('cardId', '==', cardId)
+        .where('boardId', '==', boardId)
+        .orderBy('uploadedAt', 'desc')
+        .get();
+
+      const attachments = attachmentsSnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+
+      return res.json(attachments);
+    } catch (error) {
+      logger.error('Get card attachments error:', error);
+      return res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+});
+
+export const updateCardAttachments = onRequest(
+  { 
+    cors: true,
+    invoker: "public"
+  },
+  async (req: Request, res: Response) => {
+  return cors(req, res, async () => {
+    try {
+      const { cardId, boardId, attachmentId } = req.body;
+
+      if (!cardId || !boardId || !attachmentId) {
+        return res.status(400).json({ error: 'Card ID, Board ID, and attachment ID are required' });
+      }
+
+      // Find the card
+      const boardsSnapshot = await db.collection('boards').get();
+      let cardRef = null;
+      
+      for (const boardDoc of boardsSnapshot.docs) {
+        const cardDoc = await boardDoc.ref.collection('cards').doc(cardId).get();
+        if (cardDoc.exists) {
+          cardRef = cardDoc.ref;
+          break;
+        }
+      }
+
+      if (!cardRef) {
+        return res.status(404).json({ error: 'Card not found' });
+      }
+
+      // Get attachment info
+      const attachmentDoc = await db.collection('files').doc(attachmentId).get();
+      if (!attachmentDoc.exists) {
+        return res.status(404).json({ error: 'Attachment not found' });
+      }
+
+      const attachmentData = attachmentDoc.data();
+      const cardData = (await cardRef.get()).data();
+      const currentAttachments = cardData?.attachments || [];
+
+      // Add attachment to card if not already present
+      const attachmentExists = currentAttachments.some((att: any) => att.id === attachmentId);
+      
+      if (!attachmentExists) {
+        const newAttachment = {
+          id: attachmentId,
+          name: attachmentData?.fileName,
+          url: attachmentData?.url,
+          size: attachmentData?.size,
+          mimeType: attachmentData?.mimeType,
+          uploadedAt: attachmentData?.uploadedAt
+        };
+
+        const updatedAttachments = [...currentAttachments, newAttachment];
+
+        await cardRef.update({
+          attachments: updatedAttachments,
+          updatedAt: admin.firestore.FieldValue.serverTimestamp()
+        });
+
+        return res.json({ 
+          success: true, 
+          attachment: newAttachment,
+          totalAttachments: updatedAttachments.length
+        });
+      } else {
+        return res.json({ 
+          success: true, 
+          message: 'Attachment already exists on card',
+          totalAttachments: currentAttachments.length
+        });
+      }
+    } catch (error) {
+      logger.error('Update card attachments error:', error);
+      return res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+});
+
+export const removeCardAttachment = onRequest(
+  { 
+    cors: true,
+    invoker: "public"
+  },
+  async (req: Request, res: Response) => {
+  return cors(req, res, async () => {
+    try {
+      const { cardId, boardId, attachmentId } = req.body;
+
+      if (!cardId || !boardId || !attachmentId) {
+        return res.status(400).json({ error: 'Card ID, Board ID, and attachment ID are required' });
+      }
+
+      // Find the card
+      const boardsSnapshot = await db.collection('boards').get();
+      let cardRef = null;
+      
+      for (const boardDoc of boardsSnapshot.docs) {
+        const cardDoc = await boardDoc.ref.collection('cards').doc(cardId).get();
+        if (cardDoc.exists) {
+          cardRef = cardDoc.ref;
+          break;
+        }
+      }
+
+      if (!cardRef) {
+        return res.status(404).json({ error: 'Card not found' });
+      }
+
+      const cardData = (await cardRef.get()).data();
+      const currentAttachments = cardData?.attachments || [];
+      
+      // Remove attachment
+      const updatedAttachments = currentAttachments.filter((att: any) => att.id !== attachmentId);
+
+      await cardRef.update({
+        attachments: updatedAttachments,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp()
+      });
+
+      return res.json({ 
+        success: true, 
+        totalAttachments: updatedAttachments.length
+      });
+    } catch (error) {
+      logger.error('Remove card attachment error:', error);
       return res.status(500).json({ error: 'Internal server error' });
     }
   });

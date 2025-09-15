@@ -338,9 +338,87 @@ class ApiClient {
     return this.request(`/getCalendarEvents?${params.toString()}`)
   }
 
-  // NOTE: Chat and available members endpoints not implemented yet
+  // Card Members
+  async addCardMember(cardId: string, boardId: string, memberName: string, memberEmail?: string) {
+    return this.request('/addCardMember', {
+      method: 'POST',
+      body: JSON.stringify({
+        cardId,
+        boardId,
+        memberName,
+        memberEmail
+      }),
+    })
+  }
+
+  async removeCardMember(cardId: string, boardId: string, memberName: string) {
+    return this.request('/removeCardMember', {
+      method: 'POST',
+      body: JSON.stringify({
+        cardId,
+        boardId,
+        memberName
+      }),
+    })
+  }
+
+  // Card Attachments
+  async getCardAttachments(cardId: string, boardId: string) {
+    return this.request(`/getCardAttachments?cardId=${cardId}&boardId=${boardId}`)
+  }
+
+  async updateCardAttachments(cardId: string, boardId: string, attachmentId: string) {
+    return this.request('/updateCardAttachments', {
+      method: 'POST',
+      body: JSON.stringify({
+        cardId,
+        boardId,
+        attachmentId
+      }),
+    })
+  }
+
+  async removeCardAttachment(cardId: string, boardId: string, attachmentId: string) {
+    return this.request('/removeCardAttachment', {
+      method: 'POST',
+      body: JSON.stringify({
+        cardId,
+        boardId,
+        attachmentId
+      }),
+    })
+  }
+
+  // File Upload
+  async uploadFile(boardId: string, cardId: string, file: File) {
+    // Convert file to base64
+    const reader = new FileReader()
+    const base64Promise = new Promise<string>((resolve, reject) => {
+      reader.onload = () => {
+        const result = reader.result as string
+        const base64Content = result.split(',')[1] // Remove data:type;base64, prefix
+        resolve(base64Content)
+      }
+      reader.onerror = reject
+    })
+    
+    reader.readAsDataURL(file)
+    const base64Content = await base64Promise
+
+    return this.request('/uploadFile', {
+      method: 'POST',
+      body: JSON.stringify({
+        boardId,
+        cardId,
+        fileName: file.name,
+        fileType: file.type,
+        fileData: base64Content
+      }),
+    })
+  }
+
+  // NOTE: Chat endpoints not implemented yet
   // TODO: Implement when needed:
-  // - getAvailableMembers(cardId)
   // - Chat system (getConversations, createConversation, getMessages, sendMessage)
 }
 

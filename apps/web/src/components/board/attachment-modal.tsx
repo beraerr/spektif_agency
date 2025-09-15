@@ -79,43 +79,48 @@ export function AttachmentModal({ isOpen, onClose, onUpload, onAddLink, boardId,
 
   const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
-    if (file) {
+    if (file && boardId && cardId) {
       try {
-        // Convert file to base64 for upload
-        const reader = new FileReader()
-        reader.onload = async (e) => {
-          const base64Data = e.target?.result as string
-          const base64Content = base64Data.split(',')[1] // Remove data:type;base64, prefix
-          
-          const apiUrl = process.env.NEXT_PUBLIC_FIREBASE_FUNCTIONS_URL || 'https://europe-west4-spektif-agency-final-prod.cloudfunctions.net'
-          const response = await fetch(`${apiUrl}/uploadFile`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${(session as any)?.backendToken}`
-            },
-            body: JSON.stringify({
-              boardId: boardId || 'current-board-id',
-              cardId: cardId || 'current-card-id',
-              fileName: file.name,
-              fileType: file.type,
-              fileData: base64Content
-            })
+        const apiUrl = process.env.NEXT_PUBLIC_FIREBASE_FUNCTIONS_URL || 'https://europe-west4-spektif-agency-final-prod.cloudfunctions.net'
+        const response = await fetch(`${apiUrl}/uploadFile`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${(session as any)?.backendToken}`
+          },
+          body: JSON.stringify({
+            boardId,
+            cardId,
+            fileName: file.name,
+            fileType: file.type,
+            fileData: await fileToBase64(file)
           })
-          
-          if (response.ok) {
-            const result = await response.json()
-            onUpload(file, displayText || result.fileName)
-            onClose()
-          } else {
-            console.error('File upload failed')
-          }
+        })
+        
+        if (response.ok) {
+          const result = await response.json()
+          onUpload(file, displayText || result.fileName)
+          onClose()
+        } else {
+          console.error('File upload failed')
         }
-        reader.readAsDataURL(file)
       } catch (error) {
         console.error('File upload error:', error)
       }
     }
+  }
+
+  const fileToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onload = () => {
+        const result = reader.result as string
+        const base64Content = result.split(',')[1] // Remove data:type;base64, prefix
+        resolve(base64Content)
+      }
+      reader.onerror = reject
+      reader.readAsDataURL(file)
+    })
   }
 
   const handleDrop = (event: React.DragEvent) => {
