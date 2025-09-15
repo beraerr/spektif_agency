@@ -171,11 +171,13 @@ export function DraggableCard({ card, onClick }: DraggableCardProps) {
           {card.members && card.members.length > 0 && (
             <div className="flex -space-x-1 relative items-center">
               {card.members.slice(0, 3).map((member, index) => {
+                // Handle both string and object member formats
+                const memberName = typeof member === 'string' ? member : (member as any).name || 'Unknown'
                 // Parse member name to get proper initials (First + Last name)
-                const nameParts = member.trim().split(' ')
+                const nameParts = memberName.trim().split(' ')
                 const initials = nameParts.length >= 2 
                   ? `${nameParts[0].charAt(0).toUpperCase()}${nameParts[nameParts.length - 1].charAt(0).toUpperCase()}`
-                  : member.charAt(0).toUpperCase()
+                  : memberName.charAt(0).toUpperCase()
                 
                 return (
                   <Avatar 
@@ -185,7 +187,7 @@ export function DraggableCard({ card, onClick }: DraggableCardProps) {
                       e.stopPropagation()
                       setShowMemberPopup(!showMemberPopup)
                     }}
-                    title={member}
+                    title={memberName}
                   >
                     <AvatarFallback className="text-xs bg-blue-500 text-white font-medium">
                       {initials}
@@ -229,10 +231,11 @@ export function DraggableCard({ card, onClick }: DraggableCardProps) {
                   </div>
                   <div className="space-y-2">
                     {card.members.map((member, index) => {
-                      const nameParts = member.trim().split(' ')
+                      const memberName = typeof member === 'string' ? member : (member as any).name || 'Unknown'
+                      const nameParts = memberName.trim().split(' ')
                       const initials = nameParts.length >= 2 
                         ? `${nameParts[0].charAt(0).toUpperCase()}${nameParts[nameParts.length - 1].charAt(0).toUpperCase()}`
-                        : member.charAt(0).toUpperCase()
+                        : memberName.charAt(0).toUpperCase()
                       
                       return (
                         <div key={index} className="flex items-center justify-between">
@@ -242,7 +245,7 @@ export function DraggableCard({ card, onClick }: DraggableCardProps) {
                                 {initials}
                               </AvatarFallback>
                             </Avatar>
-                            <span className="text-sm text-gray-900 dark:text-gray-100">{member}</span>
+                            <span className="text-sm text-gray-900 dark:text-gray-100">{memberName}</span>
                           </div>
                           <Button
                             variant="ghost"

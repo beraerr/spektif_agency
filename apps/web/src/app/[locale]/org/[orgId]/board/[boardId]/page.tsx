@@ -123,7 +123,10 @@ export default function BoardPage() {
       description: card.description || '',
       dueDate: card.dueDate,
       labels: (card as any).labels || [],
-      members: card.members?.map(member => member.user?.name || member.user?.email || 'Unknown') || []
+      members: card.members?.map(member => 
+        typeof member === 'string' ? member : (member as any).name || (member as any).user?.name || 'Unknown'
+      ) || [],
+      attachments: (card.attachments || []) as any[]
     })) || []
   })) || []
 
@@ -172,6 +175,9 @@ export default function BoardPage() {
           dueDate: updatedCard.dueDate
         }
       })
+      
+      // Refresh board data to get updated members and attachments
+      fetchBoard()
       
       toast.success('Card updated successfully!')
     } catch (error) {
@@ -342,6 +348,7 @@ export default function BoardPage() {
         isOpen={isCardModalOpen}
         onClose={handleCardModalClose}
         onUpdate={handleCardUpdate}
+        onRefresh={fetchBoard}
         boardId={boardId}
       />
     </div>
