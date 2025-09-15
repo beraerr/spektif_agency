@@ -643,7 +643,13 @@ export function CardModal({ card, isOpen, onClose, onUpdate, boardId }: CardModa
               if (!card || !boardId) return
               
               // Upload file to get attachment ID
-              const uploadResult = await apiClient.uploadFile(boardId, card.id, file)
+              const uploadResult = await apiClient.uploadFile(boardId, card.id, file) as {
+                id: string
+                fileName: string
+                url: string
+                size: number
+                mimeType: string
+              }
               
               // Update card with new attachment
               await apiClient.updateCardAttachments(card.id, boardId, uploadResult.id)

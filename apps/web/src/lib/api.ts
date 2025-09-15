@@ -390,7 +390,13 @@ class ApiClient {
   }
 
   // File Upload
-  async uploadFile(boardId: string, cardId: string, file: File) {
+  async uploadFile(boardId: string, cardId: string, file: File): Promise<{
+    id: string
+    fileName: string
+    url: string
+    size: number
+    mimeType: string
+  }> {
     // Convert file to base64
     const reader = new FileReader()
     const base64Promise = new Promise<string>((resolve, reject) => {
