@@ -44,7 +44,6 @@ interface CardModalProps {
   isOpen: boolean
   onClose: () => void
   onUpdate?: (card: CardData) => void
-  onRefresh?: () => void
   boardId?: string
 }
 
@@ -70,7 +69,7 @@ interface AvailableMember {
   avatar: string
 }
 
-export function CardModal({ card, isOpen, onClose, onUpdate, onRefresh, boardId }: CardModalProps) {
+export function CardModal({ card, isOpen, onClose, onUpdate, boardId }: CardModalProps) {
   const [title, setTitle] = useState(card?.title || '')
   const [isEditingTitle, setIsEditingTitle] = useState(false)
   const [description, setDescription] = useState(card?.description || '')
@@ -369,7 +368,6 @@ export function CardModal({ card, isOpen, onClose, onUpdate, onRefresh, boardId 
                                 }
                                 
                                 onUpdate?.(updatedCard)
-                                onRefresh?.() // Refresh board data
                                 toast.success('Attachment removed successfully!')
                               } catch (error) {
                                 console.error('Failed to remove attachment:', error)
@@ -464,7 +462,6 @@ export function CardModal({ card, isOpen, onClose, onUpdate, onRefresh, boardId 
                               await apiClient.removeCardMember(card.id, boardId || '', member)
                               const newMembers = (card.members || []).filter((_, i) => i !== index)
                               onUpdate?.({ ...card, members: newMembers })
-                              onRefresh?.() // Refresh board data
                               toast.success('Member removed successfully!')
                             } catch (error) {
                               console.error('Failed to remove member:', error)
@@ -515,7 +512,6 @@ export function CardModal({ card, isOpen, onClose, onUpdate, onRefresh, boardId 
                                   if (!currentMembers.includes(member.name)) {
                                     const newMembers = [...currentMembers, member.name]
                                     onUpdate?.({ ...card, members: newMembers })
-                                    onRefresh?.() // Refresh board data
                                     toast.success('Member added successfully!')
                                   }
                                 } catch (error) {
@@ -668,7 +664,6 @@ export function CardModal({ card, isOpen, onClose, onUpdate, onRefresh, boardId 
               }
               
               onUpdate?.(updatedCard)
-              onRefresh?.() // Refresh board data
               toast.success('File uploaded successfully!')
             } catch (error) {
               console.error('Failed to upload file:', error)

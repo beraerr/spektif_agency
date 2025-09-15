@@ -500,16 +500,27 @@ export const updateCard = onRequest(
       if (!cardRef) {
         return res.status(404).json({ error: 'Card not found' });
       }
+      // Log the update data for debugging
+      logger.info('Updating card with data:', updateData);
+
       await cardRef.update({
         ...updateData,
         updatedAt: admin.firestore.FieldValue.serverTimestamp()
       });
 
       const updatedDoc = await cardRef.get();
+      const updatedData = updatedDoc.data();
+
+      // Log the updated data for debugging
+      logger.info('Card updated successfully:', {
+        id: updatedDoc.id,
+        members: updatedData?.members,
+        attachments: updatedData?.attachments
+      });
 
       return res.json({
         id: updatedDoc.id,
-        ...updatedDoc.data()
+        ...updatedData
       });
     } catch (error) {
       logger.error('Update card error:', error);

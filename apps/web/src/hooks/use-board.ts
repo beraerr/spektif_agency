@@ -139,6 +139,8 @@ export function useBoard(boardId: string) {
     dueDate: string
     listId: string
     position: number
+    members: string[]
+    attachments: any[]
   }>) => {
     if (!board) return
 

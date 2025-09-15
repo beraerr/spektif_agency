@@ -289,6 +289,8 @@ class ApiClient {
     dueDate: string
     listId: string
     position: number
+    members: string[]
+    attachments: any[]
   }>) {
     return this.request('/updateCard', {
       method: 'POST',

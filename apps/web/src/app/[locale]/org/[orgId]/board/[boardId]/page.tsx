@@ -160,11 +160,17 @@ export default function BoardPage() {
 
   const handleCardUpdate = async (updatedCard: CardData) => {
     try {
+      // Update card in database (all fields including members and attachments)
       await updateCard(updatedCard.id, {
         title: updatedCard.title,
         description: updatedCard.description,
-        dueDate: updatedCard.dueDate
+        dueDate: updatedCard.dueDate,
+        members: updatedCard.members,
+        attachments: updatedCard.attachments
       })
+      
+      // Refresh board data to get updated members and attachments
+      fetchBoard()
       
       // Emit real-time update
       emitCardUpdated({
@@ -172,12 +178,11 @@ export default function BoardPage() {
         updates: {
           title: updatedCard.title,
           description: updatedCard.description,
-          dueDate: updatedCard.dueDate
+          dueDate: updatedCard.dueDate,
+          members: updatedCard.members,
+          attachments: updatedCard.attachments
         }
       })
-      
-      // Refresh board data to get updated members and attachments
-      fetchBoard()
       
       toast.success('Card updated successfully!')
     } catch (error) {
@@ -348,7 +353,6 @@ export default function BoardPage() {
         isOpen={isCardModalOpen}
         onClose={handleCardModalClose}
         onUpdate={handleCardUpdate}
-        onRefresh={fetchBoard}
         boardId={boardId}
       />
     </div>
