@@ -342,6 +342,7 @@ export default function BoardPage() {
         isOpen={isCardModalOpen}
         onClose={handleCardModalClose}
         onUpdate={handleCardUpdate}
+        boardId={boardId}
       />
     </div>
   )

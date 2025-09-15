@@ -33,11 +33,12 @@ firebase deploy --only functions
 
 Comprehensive documentation is available in the `.docs/` folder:
 
+- **[README.md](.docs/README.md)** - Complete documentation overview and system status
 - **[CURRENT_SYSTEM_ARCHITECTURE.md](.docs/CURRENT_SYSTEM_ARCHITECTURE.md)** - Complete system documentation
+- **[API_REFERENCE.md](.docs/API_REFERENCE.md)** - Complete API endpoint documentation
 - **[MIGRATION_JOURNEY_AND_LEARNINGS.md](.docs/MIGRATION_JOURNEY_AND_LEARNINGS.md)** - Migration process and lessons learned
 - **[TROUBLESHOOTING_AND_MAINTENANCE.md](.docs/TROUBLESHOOTING_AND_MAINTENANCE.md)** - Operational procedures
-- **[DOCUMENTATION_INDEX.md](.docs/DOCUMENTATION_INDEX.md)** - Documentation guide
-- **[FINAL_DEPLOYMENT_STATUS.md](.docs/FINAL_DEPLOYMENT_STATUS.md)** - Current deployment status
+- **[COMPREHENSIVE_DEVELOPMENT_LOG.md](.docs/COMPREHENSIVE_DEVELOPMENT_LOG.md)** - Detailed development history
 
 ## System Status
 

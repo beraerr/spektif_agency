@@ -468,8 +468,8 @@ function TemplatesView({ session }: { session: any }) {
 
     fetchBoards() // Initial fetch
     
-    // Set up real-time updates every 15 seconds
-    const interval = setInterval(fetchBoards, 15000)
+    // Set up real-time updates every 60 seconds (reduced frequency)
+    const interval = setInterval(fetchBoards, 60000)
     
     return () => clearInterval(interval)
   }, [session])

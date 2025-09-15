@@ -176,12 +176,20 @@ export function DragDropBoard({
         // Update UI immediately for better UX
         onListsChange(newLists)
         
-        // TODO: Add API call for card reordering when backend is ready
-        // await apiClient.moveCard(activeCard.id, {
-        //   listId: overList.id,
-        //   position: newIndex,
-        //   boardId: boardId
-        // })
+        // API call for card reordering
+        if (boardId) {
+          try {
+            await apiClient.moveCard(activeCard.id, {
+              listId: overList.id,
+              position: newIndex,
+              boardId: boardId
+            })
+          } catch (error) {
+            console.error('Failed to reorder card:', error)
+            // Revert UI change on error
+            onListsChange(lists)
+          }
+        }
       } else {
         // Moving card to different list
         const newLists = [...lists]
@@ -198,12 +206,20 @@ export function DragDropBoard({
         // Update UI immediately for better UX
         onListsChange(newLists)
         
-        // TODO: Add API call for card movement when backend is ready
-        // await apiClient.moveCard(activeCard.id, {
-        //   listId: overList.id,
-        //   position: newLists[targetListIndex].cards.length - 1,
-        //   boardId: boardId
-        // })
+        // API call for card movement
+        if (boardId) {
+          try {
+            await apiClient.moveCard(activeCard.id, {
+              listId: overList.id,
+              position: newLists[targetListIndex].cards.length - 1,
+              boardId: boardId
+            })
+          } catch (error) {
+            console.error('Failed to move card:', error)
+            // Revert UI change on error
+            onListsChange(lists)
+          }
+        }
       }
     } catch (error) {
       console.error('Drag drop error:', error)

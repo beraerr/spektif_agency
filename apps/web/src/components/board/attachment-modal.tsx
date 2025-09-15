@@ -13,6 +13,8 @@ interface AttachmentModalProps {
   onClose: () => void
   onUpload: (file: File, displayText?: string) => void
   onAddLink: (url: string, displayText?: string) => void
+  boardId?: string
+  cardId?: string
 }
 
 interface RecentItem {
@@ -24,7 +26,7 @@ interface RecentItem {
   icon: React.ReactNode
 }
 
-export function AttachmentModal({ isOpen, onClose, onUpload, onAddLink }: AttachmentModalProps) {
+export function AttachmentModal({ isOpen, onClose, onUpload, onAddLink, boardId, cardId }: AttachmentModalProps) {
   const { data: session } = useSession()
   const [activeTab, setActiveTab] = useState<'upload' | 'link'>('upload')
   const [linkUrl, setLinkUrl] = useState('')
@@ -79,28 +81,37 @@ export function AttachmentModal({ isOpen, onClose, onUpload, onAddLink }: Attach
     const file = event.target.files?.[0]
     if (file) {
       try {
-        // Upload file to backend
-        const formData = new FormData()
-        formData.append('file', file)
-        formData.append('boardId', 'current-board-id') // This should be passed as prop
-        formData.append('cardId', 'current-card-id') // This should be passed as prop
-        
-        const apiUrl = process.env.NEXT_PUBLIC_FIREBASE_FUNCTIONS_URL || 'https://europe-west4-spektif-agency-final-prod.cloudfunctions.net'
-        const response = await fetch(`${apiUrl}/uploadFile`, {
-          method: 'POST',
-          body: formData,
-          headers: {
-            'Authorization': `Bearer ${(session as any)?.backendToken}`
+        // Convert file to base64 for upload
+        const reader = new FileReader()
+        reader.onload = async (e) => {
+          const base64Data = e.target?.result as string
+          const base64Content = base64Data.split(',')[1] // Remove data:type;base64, prefix
+          
+          const apiUrl = process.env.NEXT_PUBLIC_FIREBASE_FUNCTIONS_URL || 'https://europe-west4-spektif-agency-final-prod.cloudfunctions.net'
+          const response = await fetch(`${apiUrl}/uploadFile`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${(session as any)?.backendToken}`
+            },
+            body: JSON.stringify({
+              boardId: boardId || 'current-board-id',
+              cardId: cardId || 'current-card-id',
+              fileName: file.name,
+              fileType: file.type,
+              fileData: base64Content
+            })
+          })
+          
+          if (response.ok) {
+            const result = await response.json()
+            onUpload(file, displayText || result.fileName)
+            onClose()
+          } else {
+            console.error('File upload failed')
           }
-        })
-        
-        if (response.ok) {
-          const result = await response.json()
-          onUpload(file, displayText || result.originalName)
-          onClose()
-        } else {
-          console.error('File upload failed')
         }
+        reader.readAsDataURL(file)
       } catch (error) {
         console.error('File upload error:', error)
       }

@@ -10,14 +10,23 @@ import { Button } from '@/components/ui/button'
 import { Calendar, MessageSquare, Paperclip, Clock, X, User } from 'lucide-react'
 import { useState, useEffect, useRef } from 'react'
 
+export interface Attachment {
+  id: string
+  name: string
+  url: string
+  size: number
+  mimeType: string
+  uploadedAt: string
+}
+
 export interface CardData {
   id: string
   title: string
   description?: string
   dueDate?: string
   labels?: string[]
-  members?: string[]
-  attachments?: number
+  members?: string[] // Array of member names for display
+  attachments?: Attachment[] // Changed from number to array
   comments?: number
 }
 
@@ -142,10 +151,10 @@ export function DraggableCard({ card, onClick }: DraggableCardProps) {
           <div className="flex items-center space-x-2">
 
             {/* Attachments */}
-            {card.attachments && card.attachments > 0 && (
+            {card.attachments && card.attachments.length > 0 && (
               <div className="flex items-center text-xs text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300">
                 <Paperclip className="w-3 h-3 mr-1" />
-                {card.attachments}
+                {card.attachments.length}
               </div>
             )}
 
@@ -160,21 +169,30 @@ export function DraggableCard({ card, onClick }: DraggableCardProps) {
 
           {/* Members */}
           {card.members && card.members.length > 0 && (
-            <div className="flex -space-x-1 relative">
-              {card.members.slice(0, 3).map((member, index) => (
-                <Avatar 
-                  key={index} 
-                  className="w-6 h-6 border-2 border-white dark:border-gray-700 cursor-pointer hover:scale-110 transition-transform"
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    setShowMemberPopup(!showMemberPopup)
-                  }}
-                >
-                  <AvatarFallback className="text-xs bg-blue-500 text-white">
-                    {member.charAt(0).toUpperCase()}
-                  </AvatarFallback>
-                </Avatar>
-              ))}
+            <div className="flex -space-x-1 relative items-center">
+              {card.members.slice(0, 3).map((member, index) => {
+                // Parse member name to get proper initials (First + Last name)
+                const nameParts = member.trim().split(' ')
+                const initials = nameParts.length >= 2 
+                  ? `${nameParts[0].charAt(0).toUpperCase()}${nameParts[nameParts.length - 1].charAt(0).toUpperCase()}`
+                  : member.charAt(0).toUpperCase()
+                
+                return (
+                  <Avatar 
+                    key={index} 
+                    className="w-6 h-6 border-2 border-white dark:border-gray-700 cursor-pointer hover:scale-110 transition-transform"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setShowMemberPopup(!showMemberPopup)
+                    }}
+                    title={member}
+                  >
+                    <AvatarFallback className="text-xs bg-blue-500 text-white font-medium">
+                      {initials}
+                    </AvatarFallback>
+                  </Avatar>
+                )
+              })}
               {card.members.length > 3 && (
                 <div 
                   className="w-6 h-6 bg-gray-200 dark:bg-gray-600 rounded-full border-2 border-white dark:border-gray-700 flex items-center justify-center cursor-pointer hover:scale-110 transition-transform"
@@ -182,16 +200,24 @@ export function DraggableCard({ card, onClick }: DraggableCardProps) {
                     e.stopPropagation()
                     setShowMemberPopup(!showMemberPopup)
                   }}
+                  title={`${card.members.length - 3} more members`}
                 >
-                  <span className="text-xs text-gray-600 dark:text-gray-300">+{card.members.length - 3}</span>
+                  <span className="text-xs text-gray-600 dark:text-gray-300 font-medium">+{card.members.length - 3}</span>
                 </div>
               )}
+              
+              {/* Show total member count */}
+              <div className="ml-2 text-xs text-gray-500 dark:text-gray-400">
+                {card.members.length} member{card.members.length !== 1 ? 's' : ''}
+              </div>
               
               {/* Member Management Popup */}
               {showMemberPopup && (
                 <div ref={popupRef} className="absolute top-8 right-0 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg p-3 z-50 min-w-[200px]">
                   <div className="flex items-center justify-between mb-2">
-                    <h4 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Members</h4>
+                    <h4 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                      Members ({card.members.length})
+                    </h4>
                     <Button
                       variant="ghost"
                       size="sm"
@@ -202,30 +228,37 @@ export function DraggableCard({ card, onClick }: DraggableCardProps) {
                     </Button>
                   </div>
                   <div className="space-y-2">
-                    {card.members.map((member, index) => (
-                      <div key={index} className="flex items-center justify-between">
-                        <div className="flex items-center space-x-2">
-                          <Avatar className="w-6 h-6">
-                            <AvatarFallback className="text-xs bg-blue-500 text-white">
-                              {member.charAt(0).toUpperCase()}
-                            </AvatarFallback>
-                          </Avatar>
-                          <span className="text-sm text-gray-900 dark:text-gray-100">{member}</span>
+                    {card.members.map((member, index) => {
+                      const nameParts = member.trim().split(' ')
+                      const initials = nameParts.length >= 2 
+                        ? `${nameParts[0].charAt(0).toUpperCase()}${nameParts[nameParts.length - 1].charAt(0).toUpperCase()}`
+                        : member.charAt(0).toUpperCase()
+                      
+                      return (
+                        <div key={index} className="flex items-center justify-between">
+                          <div className="flex items-center space-x-2">
+                            <Avatar className="w-6 h-6">
+                              <AvatarFallback className="text-xs bg-blue-500 text-white font-medium">
+                                {initials}
+                              </AvatarFallback>
+                            </Avatar>
+                            <span className="text-sm text-gray-900 dark:text-gray-100">{member}</span>
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 w-6 p-0 hover:bg-red-100 hover:text-red-600"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              // Remove member logic would go here
+                              console.log('Remove member:', member)
+                            }}
+                          >
+                            <X className="w-3 h-3" />
+                          </Button>
                         </div>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-6 w-6 p-0 hover:bg-red-100 hover:text-red-600"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            // Remove member logic would go here
-                            console.log('Remove member:', member)
-                          }}
-                        >
-                          <X className="w-3 h-3" />
-                        </Button>
-                      </div>
-                    ))}
+                      )
+                    })}
                     <div className="pt-2 border-t border-gray-200 dark:border-gray-700">
                       <Button
                         variant="ghost"
