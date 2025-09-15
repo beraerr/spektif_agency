@@ -161,6 +161,7 @@ export default function BoardPage() {
   const handleCardUpdate = async (updatedCard: CardData) => {
     try {
       // Update card in database (all fields including members and attachments)
+      // This also updates the board state automatically
       await updateCard(updatedCard.id, {
         title: updatedCard.title,
         description: updatedCard.description,
@@ -168,9 +169,6 @@ export default function BoardPage() {
         members: updatedCard.members,
         attachments: updatedCard.attachments
       })
-      
-      // Refresh board data to get updated members and attachments
-      fetchBoard()
       
       // Emit real-time update
       emitCardUpdated({

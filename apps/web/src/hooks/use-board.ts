@@ -147,10 +147,13 @@ export function useBoard(boardId: string) {
     try {
       const updatedCard = await apiClient.updateCard(cardId, data) as any
       
+      console.log('updateCard hook - API response:', updatedCard)
+      console.log('updateCard hook - Input data:', data)
+      
       setBoard(prev => {
         if (!prev) return null
         
-        return {
+        const newBoard = {
           ...prev,
           lists: prev.lists.map(list => ({
             ...list,
@@ -159,6 +162,9 @@ export function useBoard(boardId: string) {
             )
           }))
         }
+        
+        console.log('updateCard hook - Updated board state:', newBoard)
+        return newBoard
       })
       
       return updatedCard
