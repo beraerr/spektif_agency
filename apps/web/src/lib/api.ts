@@ -243,6 +243,16 @@ class ApiClient {
     })
   }
 
+  async pinBoard(boardId: string, pinned: boolean) {
+    return this.request('/updateBoard', {
+      method: 'POST',
+      body: JSON.stringify({
+        id: boardId,
+        pinned: pinned
+      }),
+    })
+  }
+
   // Lists
   async createList(data: {
     boardId: string

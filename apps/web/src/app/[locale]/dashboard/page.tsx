@@ -7,7 +7,7 @@ import { useTranslations } from 'next-intl'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
-import { Calendar, MessageSquare, Users, BarChart3, Home, UserCheck, Building2, LogOut, Sparkles, Folder, MoreVertical, Image, Upload, X, Loader2, Edit, Save, Trash2 } from 'lucide-react'
+import { Calendar, MessageSquare, Users, BarChart3, Home, UserCheck, Building2, LogOut, Sparkles, Folder, MoreVertical, Image, Upload, X, Loader2, Edit, Save, Trash2, Pin, PinOff } from 'lucide-react'
 import { ThemeSwitcher } from '@/components/theme-switcher'
 import { LanguageSwitcher } from '@/components/language-switcher'
 import { apiClient } from '@/lib/api'
@@ -111,31 +111,19 @@ export default function DashboardPage() {
               Müşteriler
             </Button>
           )}
-        </nav>
 
-        {/* User Info */}
-        <div className="absolute bottom-4 left-4 right-4">
-          <div className="flex items-center justify-between p-3 bg-background rounded-lg border">
-            <div className="flex items-center space-x-3">
-              <div className="w-8 h-8 bg-brand-primary/10 rounded-full flex items-center justify-center">
-                <span className="text-brand-primary font-medium text-sm">
-                  {session.user?.name?.charAt(0)}
-                </span>
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium truncate">{session.user?.name}</p>
-                <p className="text-xs text-muted-foreground truncate">{session.user?.email}</p>
-              </div>
-            </div>
+          {/* Logout Button */}
+          <div className="pt-4 border-t border-border mt-4">
             <Button
               variant="ghost"
-              size="sm"
-              onClick={() => signOut({ callbackUrl: '/' })}
+              className="w-full justify-start text-muted-foreground hover:text-foreground"
+              onClick={() => signOut({ callbackUrl: '/tr/auth/login' })}
             >
-              <LogOut className="w-4 h-4" />
+              <LogOut className="w-4 h-4 mr-3" />
+              Çıkış Yap
             </Button>
           </div>
-        </div>
+        </nav>
       </aside>
 
       {/* Main Content */}
@@ -364,6 +352,38 @@ function TemplatesView({ session }: { session: any }) {
     reader.readAsDataURL(file)
   }
 
+  // Handle board pinning
+  const handlePinBoard = async (boardId: string, pinned: boolean) => {
+    try {
+      await apiClient.pinBoard(boardId, pinned)
+      setBoards(boards.map(board => 
+        board.id === boardId ? { ...board, pinned } : board
+      ))
+      toast.success(pinned ? 'Board pinlendi!' : 'Board pin kaldirildi!')
+      setShowBoardSettings(null)
+    } catch (error) {
+      console.error('Error pinning board:', error)
+      toast.error('Board pinlenirken hata olustu')
+    }
+  }
+
+  // Handle board deletion
+  const handleDeleteBoard = async (boardId: string) => {
+    if (!confirm('Bu boardu silmek istediginizden emin misiniz? Bu islem geri alinamaz.')) {
+      return
+    }
+    
+    try {
+      await apiClient.deleteBoard(boardId)
+      setBoards(boards.filter(board => board.id !== boardId))
+      toast.success('Board silindi!')
+      setShowBoardSettings(null)
+    } catch (error) {
+      console.error('Error deleting board:', error)
+      toast.error('Board silinirken hata olustu')
+    }
+  }
+
   // Handle board creation
   const handleCreateBoard = async () => {
     try {
@@ -563,6 +583,13 @@ function TemplatesView({ session }: { session: any }) {
                   <div className="absolute inset-0 bg-black/20"></div>
                 </div>
                 
+                {/* Pinned Indicator */}
+                {board.pinned && (
+                  <div className="absolute top-2 left-2 z-20">
+                    <Pin className="w-5 h-5 text-yellow-400 fill-yellow-400 drop-shadow-lg" />
+                  </div>
+                )}
+
                 {/* Board Settings Menu Button */}
                 <Button
                   variant="ghost"
@@ -708,6 +735,41 @@ function TemplatesView({ session }: { session: any }) {
                         Arkaplan Sil
                       </Button>
                     )}
+
+                    {/* Pin Board */}
+                    <div className="border-t border-gray-200 pt-3">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handlePinBoard(board.id, !board.pinned)}
+                        className="w-full justify-start"
+                      >
+                        {board.pinned ? (
+                          <>
+                            <PinOff className="w-4 h-4 mr-2" />
+                            Pin Kaldir
+                          </>
+                        ) : (
+                          <>
+                            <Pin className="w-4 h-4 mr-2" />
+                            Boardu Pinle
+                          </>
+                        )}
+                      </Button>
+                    </div>
+
+                    {/* Delete Board */}
+                    <div className="border-t border-gray-200 pt-3">
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => handleDeleteBoard(board.id)}
+                        className="w-full justify-start"
+                      >
+                        <Trash2 className="w-4 h-4 mr-2" />
+                        Boardu Sil
+                      </Button>
+                    </div>
                   </div>
                 </div>
               )}

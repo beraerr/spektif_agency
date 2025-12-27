@@ -93,39 +93,19 @@ export function EmployeeDashboard({ session }: EmployeeDashboardProps) {
             <Building2 className="w-4 h-4 mr-3" />
             Atanan Boardlar
           </Button>
-        </nav>
 
-        {/* User Info */}
-        <div className="absolute bottom-4 left-4 right-4">
-          <Card className="p-3">
-            <div className="flex items-center space-x-3">
-              <div className="w-8 h-8 bg-brand-primary/10 rounded-full flex items-center justify-center">
-                <span className="text-brand-primary font-medium text-sm">
-                  {session?.user?.name?.charAt(0) || 'U'}
-                </span>
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium truncate">
-                  {session?.user?.name} {session?.user?.surname}
-                </p>
-                <p className="text-xs text-muted-foreground truncate">
-                  {session?.user?.email}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  {session?.user?.position || 'Çalışan'}
-                </p>
-              </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleSignOut}
-                className="text-muted-foreground hover:text-foreground"
-              >
-                <LogOut className="w-4 h-4" />
-              </Button>
-            </div>
-          </Card>
-        </div>
+          {/* Logout Button */}
+          <div className="pt-4 border-t border-border mt-4">
+            <Button
+              variant="ghost"
+              className="w-full justify-start text-muted-foreground hover:text-foreground"
+              onClick={handleSignOut}
+            >
+              <LogOut className="w-4 h-4 mr-3" />
+              Çıkış Yap
+            </Button>
+          </div>
+        </nav>
       </aside>
 
       {/* Main Content */}

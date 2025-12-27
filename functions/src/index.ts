@@ -288,7 +288,20 @@ export const getBoards = onRequest(
       });
 
       const boardsResult = await Promise.all(boardPromises);
-      return res.json(boardsResult);
+      
+      // Filter out deleted boards
+      const activeBoards = boardsResult.filter((board: any) => !board.deleted);
+      
+      // Sort boards: pinned first, then by creation date
+      activeBoards.sort((a: any, b: any) => {
+        if (a.pinned && !b.pinned) return -1;
+        if (!a.pinned && b.pinned) return 1;
+        const aTime = a.createdAt?.seconds || 0;
+        const bTime = b.createdAt?.seconds || 0;
+        return bTime - aTime; // Newest first
+      });
+      
+      return res.json(activeBoards);
     } catch (error) {
       logger.error('Get boards error:', error);
       return res.status(500).json({ error: 'Internal server error' });
@@ -341,19 +354,27 @@ export const updateBoard = onRequest(
   async (req: Request, res: Response) => {
   return cors(req, res, async () => {
     try {
-      const { boardId } = req.params;
-      const updateData = req.body;
+      const { id, ...updateData } = req.body;
 
-      if (!boardId) {
+      if (!id) {
         return res.status(400).json({ error: 'Board ID is required' });
       }
 
-      await db.collection('boards').doc(boardId).update({
+      // If deleted flag is set, mark as deleted instead of actually deleting
+      if (updateData.deleted) {
+        await db.collection('boards').doc(id).update({
+          deleted: true,
+          updatedAt: FieldValue.serverTimestamp()
+        });
+        return res.json({ success: true, message: 'Board deleted' });
+      }
+
+      await db.collection('boards').doc(id).update({
         ...updateData,
         updatedAt: FieldValue.serverTimestamp()
       });
 
-      const updatedDoc = await db.collection('boards').doc(boardId).get();
+      const updatedDoc = await db.collection('boards').doc(id).get();
       
       return res.json({
         id: updatedDoc.id,
