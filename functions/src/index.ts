@@ -360,13 +360,30 @@ export const updateBoard = onRequest(
         return res.status(400).json({ error: 'Board ID is required' });
       }
 
-      // If deleted flag is set, mark as deleted instead of actually deleting
+      // If deleted flag is set, delete the board and all its nested collections
       if (updateData.deleted) {
-        await db.collection('boards').doc(id).update({
-          deleted: true,
-          updatedAt: FieldValue.serverTimestamp()
-        });
-        return res.json({ success: true, message: 'Board deleted' });
+        const boardRef = db.collection('boards').doc(id);
+        
+        try {
+          // Delete all cards (cards are directly under board)
+          const cardsSnapshot = await boardRef.collection('cards').get();
+          const cardDeletePromises = cardsSnapshot.docs.map(cardDoc => cardDoc.ref.delete());
+          await Promise.all(cardDeletePromises);
+          
+          // Delete all lists
+          const listsSnapshot = await boardRef.collection('lists').get();
+          const listDeletePromises = listsSnapshot.docs.map(listDoc => listDoc.ref.delete());
+          await Promise.all(listDeletePromises);
+          
+          // Finally delete the board document
+          await boardRef.delete();
+          
+          logger.info(`Board ${id} and all nested data deleted successfully`);
+          return res.json({ success: true, message: 'Board and all nested data deleted' });
+        } catch (error) {
+          logger.error(`Error deleting board ${id}:`, error);
+          return res.status(500).json({ error: 'Failed to delete board and nested data' });
+        }
       }
 
       await db.collection('boards').doc(id).update({

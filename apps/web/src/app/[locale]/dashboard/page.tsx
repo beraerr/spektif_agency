@@ -374,13 +374,20 @@ function TemplatesView({ session }: { session: any }) {
     }
     
     try {
-      await apiClient.deleteBoard(boardId)
-      setBoards(boards.filter(board => board.id !== boardId))
-      toast.success('Board silindi!')
-      setShowBoardSettings(null)
-    } catch (error) {
+      const result = await apiClient.deleteBoard(boardId) as any
+      console.log('Delete board result:', result)
+      
+      if (result?.success) {
+        setBoards(boards.filter(board => board.id !== boardId))
+        toast.success('Board silindi!')
+        setShowBoardSettings(null)
+      } else {
+        throw new Error(result?.error || 'Board silinemedi')
+      }
+    } catch (error: any) {
       console.error('Error deleting board:', error)
-      toast.error('Board silinirken hata olustu')
+      const errorMessage = error?.response?.data?.error || error?.message || 'Board silinirken hata olustu'
+      toast.error(errorMessage)
     }
   }
 
