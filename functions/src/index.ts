@@ -718,16 +718,20 @@ export const createEmployee = onRequest(
   async (req: Request, res: Response) => {
   return cors(req, res, async () => {
     try {
-      const { organizationId, email, name, surname, position, phone, role } = req.body;
+      const { organizationId, email, name, surname, position, phone, role, password } = req.body;
 
       if (!organizationId || !email || !name || !surname) {
         return res.status(400).json({ error: 'Missing required fields' });
       }
 
+      // Generate a random password if not provided
+      const generatedPassword = password || `emp${Math.random().toString(36).substring(2, 8)}`;
+
       const employeeData = {
         email,
         name,
         surname,
+        password: generatedPassword,
         position: position || '',
         phone: phone || '',
         role: role || 'employee',
@@ -740,6 +744,7 @@ export const createEmployee = onRequest(
 
       return res.json({
         id: employeeRef.id,
+        tempPassword: generatedPassword, // Return password so admin can share it
         ...employeeData
       });
     } catch (error) {
@@ -793,24 +798,29 @@ export const createClient = onRequest(
   async (req: Request, res: Response) => {
   return cors(req, res, async () => {
     try {
-      const { organizationId, name, email, phone, company, address, notes } = req.body;
+      const { organizationId, name, email, phone, company, address, notes, password } = req.body;
       
       if (!organizationId || !name || !email) {
         res.status(400).json({ error: 'organizationId, name, and email are required' });
         return;
       }
 
+      // Generate a random password if not provided
+      const generatedPassword = password || `client${Math.random().toString(36).substring(2, 8)}`;
+
       const clientData = {
         organizationId,
         name,
         email,
+        password: generatedPassword,
         phone: phone || '',
-        company: company || '',
+        company: company || name,
         address: address || '',
         notes: notes || '',
+        role: 'client',
         status: 'Aktif',
         projects: 0,
-        lastProject: 'Henüz proje yok',
+        lastProject: 'Henuz proje yok',
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
         deleted: false
@@ -818,8 +828,12 @@ export const createClient = onRequest(
 
       const docRef = await db.collection('clients').add(clientData);
       
+      // Also add to users collection for login
+      await db.collection('users').doc(docRef.id).set(clientData);
+      
       res.status(201).json({
         id: docRef.id,
+        tempPassword: generatedPassword, // Return password so admin can share it
         ...clientData
       });
     } catch (error) {

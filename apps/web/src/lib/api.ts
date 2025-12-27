@@ -67,6 +67,7 @@ class ApiClient {
     position: string
     phone: string
     role: string
+    password?: string
   }) {
     return this.request('/createEmployee', {
       method: 'POST',
@@ -93,6 +94,7 @@ class ApiClient {
     company?: string
     address?: string
     notes?: string
+    password?: string
   }) {
     return this.request('/createClient', {
       method: 'POST',

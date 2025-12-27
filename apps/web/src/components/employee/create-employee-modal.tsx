@@ -24,6 +24,7 @@ interface CreateEmployeeData {
   position: string
   phone: string
   role: string
+  password: string
 }
 
 export function CreateEmployeeModal({ 
@@ -38,7 +39,8 @@ export function CreateEmployeeModal({
     surname: '',
     position: '',
     phone: '',
-    role: 'EMPLOYEE'
+    role: 'EMPLOYEE',
+    password: ''
   })
   const [isLoading, setIsLoading] = useState(false)
 
@@ -78,7 +80,8 @@ export function CreateEmployeeModal({
         surname: '',
         position: '',
         phone: '',
-        role: 'EMPLOYEE'
+        role: 'EMPLOYEE',
+        password: ''
       })
     } catch (error: any) {
       console.error('Employee creation error:', error)
@@ -166,6 +169,19 @@ export function CreateEmployeeModal({
               value={formData.phone}
               onChange={(e) => handleInputChange('phone', e.target.value)}
               required
+              className="bg-background border-input"
+            />
+          </div>
+
+          {/* Password */}
+          <div className="space-y-2">
+            <Label htmlFor="password">Sifre (bos birakilirsa otomatik olusturulur)</Label>
+            <Input
+              id="password"
+              type="password"
+              placeholder="Sifre girin veya bos birakin"
+              value={formData.password}
+              onChange={(e) => handleInputChange('password', e.target.value)}
               className="bg-background border-input"
             />
           </div>
