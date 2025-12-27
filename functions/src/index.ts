@@ -215,12 +215,42 @@ export const getBoards = onRequest(
           .limit(50)
           .get();
       } else if (role === 'employee') {
-        // Employees can only see boards they are members of
-        boardsSnapshot = await db.collection('boards')
+        // Employees can see boards they are members of OR boards assigned via assignedBoards
+        // Get user's assignedBoards first
+        const userDoc = await db.collection('users').doc(userId).get();
+        const userData = userDoc.data();
+        const assignedBoardIds = userData?.assignedBoards || [];
+        
+        // Get boards where user is a member
+        const memberBoardsSnapshot = await db.collection('boards')
           .where('members', 'array-contains', userId)
-          .orderBy('createdAt', 'desc')
-          .limit(50)
           .get();
+        
+        // Get boards from assignedBoards
+        const assignedBoardPromises = assignedBoardIds.map((boardId: string) => 
+          db.collection('boards').doc(boardId).get()
+        );
+        const assignedBoardDocs = await Promise.all(assignedBoardPromises);
+        
+        // Combine and deduplicate
+        const allBoardDocs = new Map();
+        memberBoardsSnapshot.docs.forEach(doc => {
+          allBoardDocs.set(doc.id, doc);
+        });
+        assignedBoardDocs.forEach(doc => {
+          if (doc.exists) {
+            allBoardDocs.set(doc.id, doc);
+          }
+        });
+        
+        // Convert to array and sort
+        boardsSnapshot = {
+          docs: Array.from(allBoardDocs.values()).sort((a, b) => {
+            const aTime = a.data()?.createdAt?.seconds || 0;
+            const bTime = b.data()?.createdAt?.seconds || 0;
+            return bTime - aTime;
+          }).slice(0, 50)
+        } as any;
       } else {
         // Admin can see all boards (or boards they are members of)
         boardsSnapshot = await db.collection('boards')
@@ -555,20 +585,92 @@ export const updateCard = onRequest(
       // Find the card by searching all boards
       const boardsSnapshot = await db.collection('boards').get();
       let cardRef = null;
+      let boardId = null;
       
       for (const boardDoc of boardsSnapshot.docs) {
         const cardDoc = await boardDoc.ref.collection('cards').doc(cardId).get();
         if (cardDoc.exists) {
           cardRef = cardDoc.ref;
+          boardId = boardDoc.id;
           break;
         }
       }
 
-      if (!cardRef) {
+      if (!cardRef || !boardId) {
         return res.status(404).json({ error: 'Card not found' });
       }
       // Log the update data for debugging
       logger.info('Updating card with data:', updateData);
+
+      // Get current card data to check labels
+      const currentCardData = (await cardRef.get()).data();
+      const cardLabels = updateData.labels || currentCardData?.labels || [];
+      const hasProjectLabel = cardLabels.some((label: string) => 
+        label.toLowerCase().includes('proje') || label.toLowerCase() === 'project'
+      );
+
+      // If card has "proje" label and members are being updated, add board to employee's assigned boards
+      if (hasProjectLabel && updateData.members) {
+        const newMembers = updateData.members;
+        const oldMembers = currentCardData?.members || [];
+        
+        // Find newly added members (handle both string names and objects)
+        const addedMembers = newMembers.filter((member: any) => {
+          const memberName = typeof member === 'string' ? member : member.name || '';
+          return !oldMembers.some((oldMember: any) => {
+            const oldMemberName = typeof oldMember === 'string' ? oldMember : oldMember.name || '';
+            return oldMemberName === memberName;
+          });
+        });
+        
+        if (addedMembers.length > 0) {
+          // Get board data
+          const boardDoc = await db.collection('boards').doc(boardId).get();
+          const boardData = boardDoc.data();
+          
+          // For each newly added member, find their user ID and add board to their assigned boards
+          for (const member of addedMembers) {
+            const memberName = typeof member === 'string' ? member : member.name || '';
+            if (!memberName) continue;
+            
+            // Find user by name (could be "John Doe" format)
+            const nameParts = memberName.split(' ');
+            const firstName = nameParts[0];
+            const lastName = nameParts.slice(1).join(' ');
+            
+            // Search for user by name
+            const usersSnapshot = await db.collection('users')
+              .where('name', '==', firstName)
+              .get();
+            
+            for (const userDoc of usersSnapshot.docs) {
+              const userData = userDoc.data();
+              if ((lastName && userData.surname === lastName) || (!lastName && !userData.surname)) {
+                // Found the user, add board to their assignedBoards if not already there
+                const userBoards = userData.assignedBoards || [];
+                if (!userBoards.includes(boardId)) {
+                  await db.collection('users').doc(userDoc.id).update({
+                    assignedBoards: [...userBoards, boardId],
+                    updatedAt: FieldValue.serverTimestamp()
+                  });
+                  logger.info(`Added board ${boardId} to user ${userDoc.id} assignedBoards (${memberName})`);
+                }
+                
+                // Also add user to board's members if not already there
+                const boardMembers = boardData?.members || [];
+                if (!boardMembers.includes(userDoc.id)) {
+                  await db.collection('boards').doc(boardId).update({
+                    members: [...boardMembers, userDoc.id],
+                    updatedAt: FieldValue.serverTimestamp()
+                  });
+                  logger.info(`Added user ${userDoc.id} to board ${boardId} members`);
+                }
+                break;
+              }
+            }
+          }
+        }
+      }
 
       await cardRef.update({
         ...updateData,

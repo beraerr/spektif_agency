@@ -32,6 +32,7 @@ export function LabelsModal({ isOpen, onClose, currentLabels, onSave }: LabelsMo
     { id: '6', name: 'Strategy', color: 'bg-blue-500', selected: currentLabels.includes('Strategy') },
     { id: '7', name: 'Research', color: 'bg-green-500', selected: currentLabels.includes('Research') },
     { id: '8', name: 'Review', color: 'bg-orange-500', selected: currentLabels.includes('Review') },
+    { id: '9', name: 'Proje', color: 'bg-indigo-500', selected: currentLabels.includes('Proje') },
   ])
   const [colorblindMode, setColorblindMode] = useState(false)
   const [editingLabel, setEditingLabel] = useState<string | null>(null)

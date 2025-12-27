@@ -19,6 +19,7 @@ import {
 } from 'lucide-react'
 import { signOut } from 'next-auth/react'
 import { apiClient } from '@/lib/api'
+import { apiClient } from '@/lib/api'
 
 interface Board {
   id: string
@@ -57,24 +58,9 @@ export default function EmployeeDashboardPage() {
         const user = session?.user as any
         if (!user?.id) return
 
-        // Fetch boards assigned to this employee
-        const apiUrl = process.env.NODE_ENV === 'development'
-          ? 'http://localhost:5001/spektif-agency-final-prod/europe-west4'
-          : (process.env.NEXT_PUBLIC_FIREBASE_FUNCTIONS_URL || '')
-        
-        const response = await fetch(
-          `${apiUrl}/getBoards?userId=${user.id}&role=employee`,
-          {
-            headers: {
-              'Authorization': `Bearer ${user.backendToken}`,
-              'Content-Type': 'application/json',
-            },
-          }
-        )
-
-        if (response.ok) {
-          const boardsData = await response.json()
-          setBoards(boardsData)
+        // Fetch boards assigned to this employee using apiClient
+        const boardsData = await apiClient.getBoards(user.id, 'employee') as any[]
+        setBoards(boardsData || [])
 
           // Extract tasks from all boards
           const allTasks: Task[] = []

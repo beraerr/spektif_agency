@@ -313,6 +313,8 @@ function TemplatesView({ session }: { session: any }) {
   const [showBoardSettings, setShowBoardSettings] = useState<string | null>(null)
   const [boardBackgrounds, setBoardBackgrounds] = useState<{[key: string]: string}>({})
   const [isCreating, setIsCreating] = useState(false)
+  const [availableMembers, setAvailableMembers] = useState<any[]>([]) // Employees + Clients
+  const [loadingMembers, setLoadingMembers] = useState(false)
 
   // Load saved backgrounds from localStorage
   useEffect(() => {
@@ -320,6 +322,45 @@ function TemplatesView({ session }: { session: any }) {
     if (saved) {
       setBoardBackgrounds(JSON.parse(saved))
     }
+  }, [])
+
+  // Load available members (employees + clients) for board assignment
+  useEffect(() => {
+    const loadMembers = async () => {
+      try {
+        setLoadingMembers(true)
+        const [employees, clients] = await Promise.all([
+          apiClient.getEmployees('spektif') as Promise<any[]>,
+          apiClient.getClients('spektif') as Promise<any[]>
+        ])
+        
+        // Combine employees and clients
+        const allMembers = [
+          ...(employees || []).map(emp => ({
+            id: emp.id,
+            name: `${emp.name} ${emp.surname || ''}`.trim(),
+            email: emp.email,
+            type: 'employee',
+            role: emp.role
+          })),
+          ...(clients || []).map(client => ({
+            id: client.id,
+            name: client.name || client.company,
+            email: client.email,
+            type: 'client',
+            role: 'client'
+          }))
+        ]
+        
+        setAvailableMembers(allMembers)
+      } catch (error) {
+        console.error('Error loading members:', error)
+      } finally {
+        setLoadingMembers(false)
+      }
+    }
+    
+    loadMembers()
   }, [])
 
   // Save backgrounds to localStorage, board context, and database
@@ -364,6 +405,58 @@ function TemplatesView({ session }: { session: any }) {
     } catch (error) {
       console.error('Error pinning board:', error)
       toast.error('Board pinlenirken hata olustu')
+    }
+  }
+
+  // Handle board member addition/removal
+  const handleAddBoardMember = async (boardId: string, memberId: string) => {
+    try {
+      const board = boards.find(b => b.id === boardId)
+      if (!board) return
+      
+      const currentMembers = board.members || []
+      if (currentMembers.includes(memberId)) {
+        toast.error('Bu uye zaten board\'a ekli')
+        return
+      }
+      
+      await apiClient.updateBoard(boardId, {
+        members: [...currentMembers, memberId]
+      })
+      
+      setBoards(boards.map(b => 
+        b.id === boardId 
+          ? { ...b, members: [...currentMembers, memberId] }
+          : b
+      ))
+      toast.success('Uye board\'a eklendi!')
+    } catch (error) {
+      console.error('Error adding board member:', error)
+      toast.error('Uye eklenirken hata olustu')
+    }
+  }
+
+  const handleRemoveBoardMember = async (boardId: string, memberId: string) => {
+    try {
+      const board = boards.find(b => b.id === boardId)
+      if (!board) return
+      
+      const currentMembers = board.members || []
+      const newMembers = currentMembers.filter((id: string) => id !== memberId)
+      
+      await apiClient.updateBoard(boardId, {
+        members: newMembers
+      })
+      
+      setBoards(boards.map(b => 
+        b.id === boardId 
+          ? { ...b, members: newMembers }
+          : b
+      ))
+      toast.success('Uye board\'dan cikarildi!')
+    } catch (error) {
+      console.error('Error removing board member:', error)
+      toast.error('Uye cikarilirken hata olustu')
     }
   }
 
@@ -705,6 +798,62 @@ function TemplatesView({ session }: { session: any }) {
                         Arkaplan Sil
                       </Button>
                     )}
+
+                    {/* Board Members Management */}
+                    <div className="border-t border-gray-200 pt-3">
+                      <h5 className="text-sm font-medium text-gray-700 mb-2">Board Uyeleri</h5>
+                      <div className="space-y-2 max-h-40 overflow-y-auto">
+                        {board.members?.map((memberId: string) => {
+                          const member = availableMembers.find(m => m.id === memberId)
+                          if (!member) return null
+                          return (
+                            <div key={memberId} className="flex items-center justify-between p-2 bg-gray-50 rounded">
+                              <div className="flex items-center space-x-2">
+                                <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs ${
+                                  member.type === 'employee' ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700'
+                                }`}>
+                                  {member.name.charAt(0)}
+                                </div>
+                                <div>
+                                  <p className="text-xs font-medium">{member.name}</p>
+                                  <p className="text-xs text-gray-500">{member.type === 'employee' ? 'Calisan' : 'Musteri'}</p>
+                                </div>
+                              </div>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleRemoveBoardMember(board.id, memberId)}
+                                className="h-6 w-6 p-0 text-red-500 hover:text-red-700"
+                              >
+                                <X className="w-3 h-3" />
+                              </Button>
+                            </div>
+                          )
+                        })}
+                      </div>
+                      <div className="mt-2">
+                        <select
+                          className="w-full text-sm border border-gray-300 rounded px-2 py-1"
+                          onChange={(e) => {
+                            const memberId = e.target.value
+                            if (memberId) {
+                              handleAddBoardMember(board.id, memberId)
+                              e.target.value = ''
+                            }
+                          }}
+                          defaultValue=""
+                        >
+                          <option value="">Uye Ekle...</option>
+                          {availableMembers
+                            .filter(m => !board.members?.includes(m.id))
+                            .map(member => (
+                              <option key={member.id} value={member.id}>
+                                {member.name} ({member.type === 'employee' ? 'Calisan' : 'Musteri'})
+                              </option>
+                            ))}
+                        </select>
+                      </div>
+                    </div>
 
                     {/* Pin Board */}
                     <div className="border-t border-gray-200 pt-3">
