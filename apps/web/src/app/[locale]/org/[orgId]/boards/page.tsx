@@ -1,7 +1,8 @@
 'use client'
 
 import { useSession } from 'next-auth/react'
-import { useParams } from 'next/navigation'
+import { useParams, useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { useEffect, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { Button } from '@/components/ui/button'
@@ -9,9 +10,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Folder, Plus, Calendar, MessageSquare } from 'lucide-react'
 import { ThemeSwitcher } from '@/components/theme-switcher'
 import { LanguageSwitcher } from '@/components/language-switcher'
+import { apiClient } from '@/lib/api'
+import { toast } from 'sonner'
 
 export default function BoardsPage() {
   const params = useParams()
+  const router = useRouter()
   const orgId = params.orgId as string
   const t = useTranslations()
   const { data: session } = useSession()
@@ -30,50 +34,40 @@ export default function BoardsPage() {
   useEffect(() => {
     const fetchBoards = async () => {
       try {
-        let token = (session as any)?.user?.backendToken
+        const user = session as any
+        const userId = user?.user?.id || 'admin'
         
-        // If no token, get one using demo credentials
-        if (!token) {
-          const apiUrl = process.env.NEXT_PUBLIC_FIREBASE_FUNCTIONS_URL || 'https://europe-west4-spektif-agency-final-prod.cloudfunctions.net'
-          const loginResponse = await fetch(`${apiUrl}/login`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email: 'admin@spektif.com', password: 'admin123' }),
-          })
-          
-          if (loginResponse.ok) {
-            const loginData = await loginResponse.json()
-            token = loginData.token
+        // Use apiClient which handles emulator URLs correctly
+        const data = await apiClient.getBoards(userId) as any[]
+        setBoards(data)
+        console.log('Workspace boards loaded:', data.length)
+        
+        // Load backgrounds from database
+        const bgFromDb: {[key: string]: string} = {}
+        data.forEach((board: any) => {
+          if (board.backgroundUrl) {
+            bgFromDb[board.id] = board.backgroundUrl
           }
-        }
-
-        if (token) {
-          const response = await fetch(`https://europe-west4-spektif-agency-final-prod.cloudfunctions.net/getBoards?userId=admin`, {
-            headers: {
-              'Authorization': `Bearer ${token}`,
-              'Content-Type': 'application/json',
-            },
-          })
-          
-          if (response.ok) {
-            const data = await response.json()
-            setBoards(data)
-            console.log('Workspace boards loaded:', data.length)
-          }
+        })
+        if (Object.keys(bgFromDb).length > 0) {
+          setBoardBackgrounds(prev => ({ ...prev, ...bgFromDb }))
         }
       } catch (error) {
         console.error('Error fetching boards:', error)
+        toast.error('Boardlar yuklenirken hata olustu')
       } finally {
         setLoading(false)
       }
     }
 
-    fetchBoards() // Initial fetch
-    
-    // Set up real-time updates every 60 seconds (reduced frequency)
-    const interval = setInterval(fetchBoards, 60000)
-    
-    return () => clearInterval(interval)
+    if (session) {
+      fetchBoards() // Initial fetch
+      
+      // Set up real-time updates every 60 seconds
+      const interval = setInterval(fetchBoards, 60000)
+      
+      return () => clearInterval(interval)
+    }
   }, [orgId, session])
 
   if (loading) {
@@ -102,7 +96,7 @@ export default function BoardsPage() {
           <div className="flex items-center space-x-4">
             <LanguageSwitcher />
             <ThemeSwitcher />
-            <Button>
+            <Button onClick={() => router.push(`/${params.locale}/dashboard`)}>
               <Plus className="w-4 h-4 mr-2" />
               Yeni Board
             </Button>
@@ -130,12 +124,10 @@ export default function BoardsPage() {
               const gradient = gradients[index % gradients.length]
               
               return (
-                <div
+                <Link
                   key={board.id}
-                  className="rounded-lg overflow-hidden shadow-md hover:shadow-xl transition-all duration-300 cursor-pointer transform hover:-translate-y-1 relative"
-                  onClick={() => {
-                    window.location.href = `/tr/org/${orgId}/board/${board.id}`
-                  }}
+                  href={`/${params.locale}/org/${orgId}/board/${board.id}`}
+                  className="rounded-lg overflow-hidden shadow-md hover:shadow-xl transition-all duration-300 cursor-pointer transform hover:-translate-y-1 relative block"
                 >
                   {/* Cover Image - Large like Trello */}
                   <div className="h-40 relative overflow-hidden">
@@ -210,20 +202,20 @@ export default function BoardsPage() {
                       </div>
                     </div>
                   </div>
-                </div>
+                </Link>
               )
             })}
 
             {boards.length === 0 && (
               <div className="col-span-full flex flex-col items-center justify-center py-12 text-center">
                 <Folder className="w-12 h-12 text-muted-foreground mb-4" />
-                <h3 className="text-lg font-medium mb-2">Henüz board bulunmuyor</h3>
+                <h3 className="text-lg font-medium mb-2">Henuz board bulunmuyor</h3>
                 <p className="text-muted-foreground mb-4">
-                  İlk board'unuzu oluşturarak başlayın
+                  Ilk board'unuzu olusturarak baslayin
                 </p>
-                <Button>
+                <Button onClick={() => router.push(`/${params.locale}/dashboard`)}>
                   <Folder className="w-4 h-4 mr-2" />
-                  Yeni Board Oluştur
+                  Yeni Board Olustur
                 </Button>
               </div>
             )}

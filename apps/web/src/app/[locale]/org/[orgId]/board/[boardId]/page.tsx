@@ -253,7 +253,7 @@ export default function BoardPage() {
       <header className="relative z-10 bg-black/10 dark:bg-black/30 backdrop-blur-sm border-b border-white/10 dark:border-white/20">
         <div className="flex items-center justify-between px-6 py-3">
           <div className="flex items-center space-x-4">
-            <Link href={`/${locale}/org/${orgId}/boards`}>
+            <Link href={`/${locale}/dashboard`}>
               <Button variant="ghost" size="sm" className="text-white hover:bg-white/10 border-0">
                 <ArrowLeft className="w-4 h-4 mr-2" />
                 Boards
