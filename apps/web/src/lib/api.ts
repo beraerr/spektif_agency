@@ -162,15 +162,15 @@ class ApiClient {
   }
 
   // Boards
-  async getBoards(organizationId: string) {
-    const cacheKey = cacheKeys.boards(organizationId)
+  async getBoards(userId: string) {
+    const cacheKey = cacheKeys.boards(userId)
     const cached = cache.get(cacheKey)
     if (cached) {
       console.log('📦 Cache hit for boards')
       return cached
     }
 
-    const data = await this.request(`/getBoards?userId=${organizationId}`)
+    const data = await this.request(`/getBoards?userId=${userId}`)
     cache.set(cacheKey, data, cacheTTL.medium)
     return data
   }
@@ -234,13 +234,18 @@ class ApiClient {
   }
 
   async deleteBoard(boardId: string) {
-    return this.request('/updateBoard', {
+    const result = await this.request('/updateBoard', {
       method: 'POST',
       body: JSON.stringify({
         id: boardId,
         deleted: true
       }),
     })
+    
+    // Invalidate boards cache so deleted board doesn't appear after refresh
+    cache.invalidatePattern('boards_')
+    
+    return result
   }
 
   async pinBoard(boardId: string, pinned: boolean) {

@@ -448,77 +448,40 @@ function TemplatesView({ session }: { session: any }) {
   useEffect(() => {
     const fetchBoards = async () => {
       try {
-        const token = (session as any)?.user?.backendToken
-        console.log('Session:', session)
-        console.log('Backend token:', token)
+        const user = session as any
+        const userId = user?.user?.id || 'admin' // Use actual user ID from session
         
-        let response
-        const apiUrl = process.env.NEXT_PUBLIC_FIREBASE_FUNCTIONS_URL || 'https://europe-west4-spektif-agency-final-prod.cloudfunctions.net'
-        console.log('🔗 API URL:', apiUrl)
-        console.log('🌍 Environment:', process.env.NODE_ENV)
+        // Use apiClient which handles emulator URLs correctly
+        const data = await apiClient.getBoards(userId) as any[]
+        setBoards(data)
+        console.log('Boards loaded:', data.length)
         
-        if (token) {
-          // Try with authentication first
-          response = await fetch(`${apiUrl}/getBoards?userId=admin`, {
-            headers: {
-              'Authorization': `Bearer ${token}`,
-              'Content-Type': 'application/json',
-            },
-          })
-        } else {
-          // Fallback: Try to login with demo credentials and get token
-          const apiUrl = process.env.NEXT_PUBLIC_FIREBASE_FUNCTIONS_URL || 'https://europe-west4-spektif-agency-final-prod.cloudfunctions.net'
-          const loginResponse = await fetch(`${apiUrl}/login`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              email: 'admin@spektif.com',
-              password: 'admin123',
-            }),
-          })
-          
-          if (loginResponse.ok) {
-            const loginData = await loginResponse.json()
-            response = await fetch(`${apiUrl}/getBoards?userId=admin`, {
-              headers: {
-                'Authorization': `Bearer ${loginData.token}`,
-                'Content-Type': 'application/json',
-              },
-            })
+        // Load backgrounds from database
+        const bgFromDb: {[key: string]: string} = {}
+        data.forEach((board: any) => {
+          if (board.backgroundUrl) {
+            bgFromDb[board.id] = board.backgroundUrl
           }
-        }
-        
-        if (response && response.ok) {
-          const data = await response.json()
-          setBoards(data)
-          console.log('Boards loaded:', data.length)
-          
-          // Load backgrounds from database
-          const bgFromDb: {[key: string]: string} = {}
-          data.forEach((board: any) => {
-            if (board.backgroundUrl) {
-              bgFromDb[board.id] = board.backgroundUrl
-            }
-          })
-          if (Object.keys(bgFromDb).length > 0) {
-            setBoardBackgrounds(prev => ({ ...prev, ...bgFromDb }))
-          }
+        })
+        if (Object.keys(bgFromDb).length > 0) {
+          setBoardBackgrounds(prev => ({ ...prev, ...bgFromDb }))
         }
       } catch (error) {
         console.error('Error fetching boards:', error)
+        toast.error('Boardlar yuklenirken hata olustu')
       } finally {
         setLoading(false)
       }
     }
 
-    fetchBoards() // Initial fetch
-    
-    // Set up real-time updates every 60 seconds (reduced frequency)
-    const interval = setInterval(fetchBoards, 60000)
-    
-    return () => clearInterval(interval)
+    if (session) {
+      fetchBoards() // Initial fetch
+      
+      // Set up real-time updates every 60 seconds
+      const interval = setInterval(fetchBoards, 60000)
+      
+      return () => clearInterval(interval)
+    }
   }, [session])
 
   if (loading) {
