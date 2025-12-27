@@ -92,8 +92,12 @@ export const login = onRequest(
         user: {
           id: userDoc.docs[0].id,
           name: user.name,
+          surname: user.surname || '',
           email: user.email,
           role: user.role,
+          position: user.position || '',
+          company: user.company || '',
+          organizationId: user.organizationId,
           backendToken: token
         }
       });
@@ -1056,11 +1060,12 @@ export const seedDatabase = onRequest(
       }
       console.log('✅ Sample cards created');
 
-      // Create sample employees
+      // Create sample employees (with passwords for login)
       const employees = [
         {
           id: 'emp-1',
           email: 'john.doe@spektif.com',
+          password: 'employee123',
           name: 'John',
           surname: 'Doe',
           position: 'Frontend Developer',
@@ -1073,6 +1078,7 @@ export const seedDatabase = onRequest(
         {
           id: 'emp-2',
           email: 'jane.smith@spektif.com',
+          password: 'employee123',
           name: 'Jane',
           surname: 'Smith',
           position: 'Backend Developer',
@@ -1089,17 +1095,19 @@ export const seedDatabase = onRequest(
       }
       console.log('✅ Sample employees created');
 
-      // Create sample clients
+      // Create sample clients (with passwords for login)
       const clients = [
         {
           id: 'client-1',
           name: 'Acme Corporation',
           email: 'contact@acme.com',
+          password: 'client123',
           phone: '+90 555 111 2233',
           company: 'Acme Corporation',
-          address: 'İstanbul, Türkiye',
-          notes: 'Ana müşteri - web tasarım projeleri',
+          address: 'Istanbul, Turkiye',
+          notes: 'Ana musteri - web tasarim projeleri',
           status: 'active',
+          role: 'client',
           organizationId: 'spektif',
           createdAt: FieldValue.serverTimestamp(),
           updatedAt: FieldValue.serverTimestamp()
@@ -1108,11 +1116,13 @@ export const seedDatabase = onRequest(
           id: 'client-2',
           name: 'TechStart Inc',
           email: 'info@techstart.com',
+          password: 'client123',
           phone: '+90 555 444 5566',
           company: 'TechStart Inc',
-          address: 'Ankara, Türkiye',
-          notes: 'Yeni müşteri - mobil uygulama geliştirme',
+          address: 'Ankara, Turkiye',
+          notes: 'Yeni musteri - mobil uygulama gelistirme',
           status: 'active',
+          role: 'client',
           organizationId: 'spektif',
           createdAt: FieldValue.serverTimestamp(),
           updatedAt: FieldValue.serverTimestamp()
@@ -1121,21 +1131,26 @@ export const seedDatabase = onRequest(
           id: 'client-3',
           name: 'Design Studio',
           email: 'hello@designstudio.com',
+          password: 'client123',
           phone: '+90 555 777 8899',
           company: 'Design Studio',
-          address: 'İzmir, Türkiye',
-          notes: 'Tasarım odaklı projeler',
+          address: 'Izmir, Turkiye',
+          notes: 'Tasarim odakli projeler',
           status: 'inactive',
+          role: 'client',
           organizationId: 'spektif',
           createdAt: FieldValue.serverTimestamp(),
           updatedAt: FieldValue.serverTimestamp()
         }
       ];
 
+      // Save clients to both collections for different use cases
       for (const client of clients) {
         await db.collection('clients').doc(client.id).set(client);
+        // Also add to users collection for login
+        await db.collection('users').doc(client.id).set(client);
       }
-      console.log('✅ Sample clients created');
+      console.log('Sample clients created');
 
       return res.json({
         success: true,

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { signIn } from 'next-auth/react'
+import { signIn, getSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useTranslations } from 'next-intl'
@@ -35,10 +35,21 @@ export default function LoginPage() {
       if (result?.error) {
         setError(t('auth.invalidCredentials'))
       } else {
-        router.push('/tr/dashboard')
+        // Get session to check user role
+        const session = await getSession()
+        const userRole = (session?.user as any)?.role
+        
+        // Redirect based on role
+        if (userRole === 'employee') {
+          router.push('/tr/employee/dashboard')
+        } else if (userRole === 'client') {
+          router.push('/tr/client/dashboard')
+        } else {
+          router.push('/tr/dashboard')
+        }
       }
     } catch (error) {
-      setError('Bir hata oluştu. Lütfen tekrar deneyin.')
+      setError('Bir hata olustu. Lutfen tekrar deneyin.')
     } finally {
       setIsLoading(false)
     }
@@ -181,9 +192,10 @@ export default function LoginPage() {
         {/* Demo credentials */}
         <div className="mt-4 p-4 bg-muted/50 rounded-lg">
           <p className="text-sm text-muted-foreground text-center">
-            <strong>Demo için:</strong><br />
-            Email: admin@spektif.com<br />
-            Şifre: admin123
+            <strong>Test Hesaplari:</strong><br /><br />
+            <span className="text-blue-500">Admin:</span> admin@spektif.com / admin123<br />
+            <span className="text-green-500">Calisan:</span> john.doe@spektif.com / employee123<br />
+            <span className="text-purple-500">Musteri:</span> contact@acme.com / client123
           </p>
         </div>
       </div>
