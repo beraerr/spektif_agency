@@ -3,6 +3,7 @@
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
+import Link from 'next/link'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -13,9 +14,19 @@ import {
   LogOut,
   User,
   Briefcase,
-  ListTodo
+  ListTodo,
+  Folder
 } from 'lucide-react'
 import { signOut } from 'next-auth/react'
+import { apiClient } from '@/lib/api'
+
+interface Board {
+  id: string
+  title: string
+  description: string
+  color: string
+  lists?: any[]
+}
 
 interface Task {
   id: string
@@ -23,11 +34,13 @@ interface Task {
   dueDate: string
   status: 'pending' | 'in_progress' | 'completed'
   boardName: string
+  boardId: string
 }
 
 export default function EmployeeDashboardPage() {
   const { data: session, status } = useSession()
   const router = useRouter()
+  const [boards, setBoards] = useState<Board[]>([])
   const [tasks, setTasks] = useState<Task[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -38,42 +51,61 @@ export default function EmployeeDashboardPage() {
   }, [status, router])
 
   useEffect(() => {
-    // Load employee's tasks
-    const loadTasks = async () => {
+    // Load employee's boards and tasks
+    const loadData = async () => {
       try {
-        // For now, use mock data
-        setTasks([
+        const user = session?.user as any
+        if (!user?.id) return
+
+        // Fetch boards assigned to this employee
+        const apiUrl = process.env.NODE_ENV === 'development'
+          ? 'http://localhost:5001/spektif-agency-final-prod/europe-west4'
+          : (process.env.NEXT_PUBLIC_FIREBASE_FUNCTIONS_URL || '')
+        
+        const response = await fetch(
+          `${apiUrl}/getBoards?userId=${user.id}&role=employee`,
           {
-            id: '1',
-            title: 'Homepage tasarimini tamamla',
-            dueDate: new Date(Date.now() + 86400000).toISOString(),
-            status: 'in_progress',
-            boardName: 'Web Sitesi Projesi'
-          },
-          {
-            id: '2',
-            title: 'API entegrasyonu',
-            dueDate: new Date(Date.now() + 172800000).toISOString(),
-            status: 'pending',
-            boardName: 'Web Sitesi Projesi'
-          },
-          {
-            id: '3',
-            title: 'Test dokumantasyonu',
-            dueDate: new Date(Date.now() - 86400000).toISOString(),
-            status: 'completed',
-            boardName: 'Web Sitesi Projesi'
+            headers: {
+              'Authorization': `Bearer ${user.backendToken}`,
+              'Content-Type': 'application/json',
+            },
           }
-        ])
+        )
+
+        if (response.ok) {
+          const boardsData = await response.json()
+          setBoards(boardsData)
+
+          // Extract tasks from all boards
+          const allTasks: Task[] = []
+          boardsData.forEach((board: any) => {
+            board.lists?.forEach((list: any) => {
+              list.cards?.forEach((card: any) => {
+                if (card.members?.includes(user.name) || card.members?.includes(`${user.name} ${user.surname}`)) {
+                  allTasks.push({
+                    id: card.id,
+                    title: card.title,
+                    dueDate: card.dueDate || '',
+                    status: list.title.toLowerCase().includes('tamamlan') ? 'completed' :
+                            list.title.toLowerCase().includes('devam') ? 'in_progress' : 'pending',
+                    boardName: board.title,
+                    boardId: board.id
+                  })
+                }
+              })
+            })
+          })
+          setTasks(allTasks)
+        }
       } catch (error) {
-        console.error('Error loading tasks:', error)
+        console.error('Error loading data:', error)
       } finally {
         setLoading(false)
       }
     }
 
     if (session) {
-      loadTasks()
+      loadData()
     }
   }, [session])
 
@@ -160,48 +192,93 @@ export default function EmployeeDashboardPage() {
           </Card>
         </div>
 
+        {/* Assigned Boards */}
+        <Card className="bg-slate-800/50 border-slate-700 mb-8">
+          <CardHeader>
+            <CardTitle className="text-white flex items-center">
+              <Folder className="w-5 h-5 mr-2" />
+              Atanan Projeler ({boards.length})
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {boards.length === 0 ? (
+              <p className="text-slate-400 text-center py-4">Henuz atanan proje yok</p>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {boards.map((board) => (
+                  <Link 
+                    key={board.id}
+                    href={`/tr/org/spektif/board/${board.id}`}
+                  >
+                    <div 
+                      className="p-4 rounded-lg cursor-pointer hover:opacity-80 transition-opacity"
+                      style={{ backgroundColor: board.color || '#3B82F6' }}
+                    >
+                      <h3 className="text-white font-bold">{board.title}</h3>
+                      <p className="text-white/70 text-sm">{board.description}</p>
+                      <p className="text-white/50 text-xs mt-2">
+                        {board.lists?.length || 0} liste
+                      </p>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
         {/* Tasks */}
         <Card className="bg-slate-800/50 border-slate-700">
           <CardHeader>
             <CardTitle className="text-white flex items-center">
               <ListTodo className="w-5 h-5 mr-2" />
-              Gorevlerim
+              Gorevlerim ({tasks.length})
             </CardTitle>
           </CardHeader>
           <CardContent>
+            {tasks.length === 0 ? (
+              <p className="text-slate-400 text-center py-4">Henuz atanan gorev yok</p>
+            ) : (
             <div className="space-y-4">
               {tasks.map((task) => (
-                <div 
+                <Link
                   key={task.id}
-                  className="flex items-center justify-between p-4 bg-slate-700/50 rounded-lg"
+                  href={`/tr/org/spektif/board/${task.boardId}`}
                 >
-                  <div className="flex items-center space-x-4">
-                    <div className={`w-3 h-3 rounded-full ${
-                      task.status === 'completed' ? 'bg-green-500' :
-                      task.status === 'in_progress' ? 'bg-blue-500' : 'bg-yellow-500'
-                    }`} />
-                    <div>
-                      <p className="text-white font-medium">{task.title}</p>
-                      <p className="text-sm text-slate-400">{task.boardName}</p>
+                  <div 
+                    className="flex items-center justify-between p-4 bg-slate-700/50 rounded-lg hover:bg-slate-600/50 cursor-pointer"
+                  >
+                    <div className="flex items-center space-x-4">
+                      <div className={`w-3 h-3 rounded-full ${
+                        task.status === 'completed' ? 'bg-green-500' :
+                        task.status === 'in_progress' ? 'bg-blue-500' : 'bg-yellow-500'
+                      }`} />
+                      <div>
+                        <p className="text-white font-medium">{task.title}</p>
+                        <p className="text-sm text-slate-400">{task.boardName}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center space-x-4">
+                      {task.dueDate && (
+                        <div className="flex items-center text-sm text-slate-400">
+                          <Calendar className="w-4 h-4 mr-1" />
+                          {new Date(task.dueDate).toLocaleDateString('tr-TR')}
+                        </div>
+                      )}
+                      <Badge className={
+                        task.status === 'completed' ? 'bg-green-500/20 text-green-400' :
+                        task.status === 'in_progress' ? 'bg-blue-500/20 text-blue-400' : 
+                        'bg-yellow-500/20 text-yellow-400'
+                      }>
+                        {task.status === 'completed' ? 'Tamamlandi' :
+                         task.status === 'in_progress' ? 'Devam Ediyor' : 'Bekliyor'}
+                      </Badge>
                     </div>
                   </div>
-                  <div className="flex items-center space-x-4">
-                    <div className="flex items-center text-sm text-slate-400">
-                      <Calendar className="w-4 h-4 mr-1" />
-                      {new Date(task.dueDate).toLocaleDateString('tr-TR')}
-                    </div>
-                    <Badge className={
-                      task.status === 'completed' ? 'bg-green-500/20 text-green-400' :
-                      task.status === 'in_progress' ? 'bg-blue-500/20 text-blue-400' : 
-                      'bg-yellow-500/20 text-yellow-400'
-                    }>
-                      {task.status === 'completed' ? 'Tamamlandi' :
-                       task.status === 'in_progress' ? 'Devam Ediyor' : 'Bekliyor'}
-                    </Badge>
-                  </div>
-                </div>
+                </Link>
               ))}
             </div>
+            )}
           </CardContent>
         </Card>
       </main>

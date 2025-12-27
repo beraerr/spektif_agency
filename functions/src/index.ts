@@ -198,18 +198,37 @@ export const getBoards = onRequest(
   async (req: Request, res: Response) => {
   return cors(req, res, async () => {
     try {
-      const { userId } = req.query;
+      const { userId, role, clientId } = req.query;
 
       if (!userId) {
         return res.status(400).json({ error: 'User ID is required' });
       }
 
-      // Optimized query with proper indexing
-      const boardsSnapshot = await db.collection('boards')
-        .where('members', 'array-contains', userId)
-        .orderBy('createdAt', 'desc')
-        .limit(50) // Limit to prevent large responses
-        .get();
+      let boardsSnapshot;
+
+      // Filter based on role
+      if (role === 'client' && clientId) {
+        // Clients can only see boards assigned to them
+        boardsSnapshot = await db.collection('boards')
+          .where('clientId', '==', clientId)
+          .orderBy('createdAt', 'desc')
+          .limit(50)
+          .get();
+      } else if (role === 'employee') {
+        // Employees can only see boards they are members of
+        boardsSnapshot = await db.collection('boards')
+          .where('members', 'array-contains', userId)
+          .orderBy('createdAt', 'desc')
+          .limit(50)
+          .get();
+      } else {
+        // Admin can see all boards (or boards they are members of)
+        boardsSnapshot = await db.collection('boards')
+          .where('members', 'array-contains', userId)
+          .orderBy('createdAt', 'desc')
+          .limit(50)
+          .get();
+      }
 
       const boards = [];
       
@@ -981,20 +1000,47 @@ export const seedDatabase = onRequest(
       await db.collection('organizations').doc('spektif').set(organization);
       console.log('✅ Organization created');
 
-      // Create sample board
-      const board = {
-        id: 'sample-board-1',
-        title: 'Proje Yönetimi',
-        description: 'Ana proje yönetim panosu',
-        organizationId: 'spektif',
-        members: ['admin'],
-        color: '#3B82F6',
-        createdAt: FieldValue.serverTimestamp(),
-        updatedAt: FieldValue.serverTimestamp()
-      };
+      // Create sample boards with member and client assignments
+      const boards = [
+        {
+          id: 'sample-board-1',
+          title: 'Proje Yonetimi',
+          description: 'Ana proje yonetim panosu',
+          organizationId: 'spektif',
+          members: ['admin', 'emp-1', 'emp-2'], // Admin and both employees
+          clientId: 'client-1', // Assigned to Acme Corporation
+          color: '#3B82F6',
+          createdAt: FieldValue.serverTimestamp(),
+          updatedAt: FieldValue.serverTimestamp()
+        },
+        {
+          id: 'sample-board-2',
+          title: 'Mobil Uygulama',
+          description: 'TechStart mobil uygulama projesi',
+          organizationId: 'spektif',
+          members: ['admin', 'emp-1'], // Admin and John Doe only
+          clientId: 'client-2', // Assigned to TechStart
+          color: '#10B981',
+          createdAt: FieldValue.serverTimestamp(),
+          updatedAt: FieldValue.serverTimestamp()
+        },
+        {
+          id: 'sample-board-3',
+          title: 'Tasarim Projesi',
+          description: 'Design Studio logo ve marka tasarimi',
+          organizationId: 'spektif',
+          members: ['admin', 'emp-2'], // Admin and Jane Smith only
+          clientId: 'client-3', // Assigned to Design Studio
+          color: '#8B5CF6',
+          createdAt: FieldValue.serverTimestamp(),
+          updatedAt: FieldValue.serverTimestamp()
+        }
+      ];
 
-      await db.collection('boards').doc('sample-board-1').set(board);
-      console.log('✅ Sample board created');
+      for (const board of boards) {
+        await db.collection('boards').doc(board.id).set(board);
+      }
+      console.log('Sample boards created');
 
       // Create sample lists
       const lists = [

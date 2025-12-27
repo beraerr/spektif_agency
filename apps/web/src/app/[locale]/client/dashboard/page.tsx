@@ -3,6 +3,7 @@
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
+import Link from 'next/link'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -15,16 +16,18 @@ import {
   CheckCircle2,
   TrendingUp,
   Calendar,
-  MessageSquare
+  MessageSquare,
+  Folder
 } from 'lucide-react'
 import { signOut } from 'next-auth/react'
 
 interface Project {
   id: string
   name: string
+  description: string
+  color: string
   status: 'active' | 'completed' | 'on_hold'
   progress: number
-  dueDate: string
   tasksCompleted: number
   totalTasks: number
 }
@@ -51,40 +54,59 @@ export default function ClientDashboardPage() {
   }, [status, router])
 
   useEffect(() => {
-    // Load client's projects and invoices
+    // Load client's projects
     const loadData = async () => {
       try {
-        // For now, use mock data
-        setProjects([
-          {
-            id: '1',
-            name: 'Kurumsal Web Sitesi',
-            status: 'active',
-            progress: 65,
-            dueDate: new Date(Date.now() + 604800000).toISOString(),
-            tasksCompleted: 13,
-            totalTasks: 20
-          },
-          {
-            id: '2',
-            name: 'Mobil Uygulama',
-            status: 'active',
-            progress: 30,
-            dueDate: new Date(Date.now() + 1209600000).toISOString(),
-            tasksCompleted: 6,
-            totalTasks: 20
-          },
-          {
-            id: '3',
-            name: 'Logo Tasarimi',
-            status: 'completed',
-            progress: 100,
-            dueDate: new Date(Date.now() - 604800000).toISOString(),
-            tasksCompleted: 5,
-            totalTasks: 5
-          }
-        ])
+        const user = session?.user as any
+        if (!user?.id) return
 
+        // Fetch boards assigned to this client
+        const apiUrl = process.env.NODE_ENV === 'development'
+          ? 'http://localhost:5001/spektif-agency-final-prod/europe-west4'
+          : (process.env.NEXT_PUBLIC_FIREBASE_FUNCTIONS_URL || '')
+        
+        const response = await fetch(
+          `${apiUrl}/getBoards?userId=${user.id}&role=client&clientId=${user.id}`,
+          {
+            headers: {
+              'Authorization': `Bearer ${user.backendToken}`,
+              'Content-Type': 'application/json',
+            },
+          }
+        )
+
+        if (response.ok) {
+          const boardsData = await response.json()
+          
+          // Convert boards to projects with progress calculation
+          const projectsData: Project[] = boardsData.map((board: any) => {
+            const totalTasks = board.lists?.reduce((sum: number, list: any) => 
+              sum + (list.cards?.length || 0), 0) || 0
+            const completedTasks = board.lists?.reduce((sum: number, list: any) => {
+              if (list.title.toLowerCase().includes('tamamlan') || list.title.toLowerCase().includes('done')) {
+                return sum + (list.cards?.length || 0)
+              }
+              return sum
+            }, 0) || 0
+            
+            const progress = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0
+            
+            return {
+              id: board.id,
+              name: board.title,
+              description: board.description || '',
+              color: board.color || '#8B5CF6',
+              status: progress === 100 ? 'completed' : 'active',
+              progress,
+              tasksCompleted: completedTasks,
+              totalTasks
+            }
+          })
+          
+          setProjects(projectsData)
+        }
+
+        // Mock invoices for now (would come from accounting system)
         setInvoices([
           {
             id: '1',
@@ -216,42 +238,47 @@ export default function ClientDashboardPage() {
           <Card className="bg-purple-800/50 border-purple-700">
             <CardHeader>
               <CardTitle className="text-white flex items-center">
-                <TrendingUp className="w-5 h-5 mr-2" />
-                Projelerim
+                <Folder className="w-5 h-5 mr-2" />
+                Projelerim ({projects.length})
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                {projects.map((project) => (
-                  <div 
-                    key={project.id}
-                    className="p-4 bg-purple-700/50 rounded-lg"
-                  >
-                    <div className="flex items-center justify-between mb-2">
-                      <h3 className="text-white font-medium">{project.name}</h3>
-                      <Badge className={
-                        project.status === 'completed' ? 'bg-green-500/20 text-green-400' :
-                        project.status === 'active' ? 'bg-blue-500/20 text-blue-400' : 
-                        'bg-yellow-500/20 text-yellow-400'
-                      }>
-                        {project.status === 'completed' ? 'Tamamlandi' :
-                         project.status === 'active' ? 'Aktif' : 'Beklemede'}
-                      </Badge>
-                    </div>
-                    <div className="mb-2">
-                      <div className="flex items-center justify-between text-sm text-purple-300 mb-1">
-                        <span>{project.tasksCompleted}/{project.totalTasks} gorev</span>
-                        <span>%{project.progress}</span>
+              {projects.length === 0 ? (
+                <p className="text-purple-300 text-center py-4">Henuz atanan proje yok</p>
+              ) : (
+                <div className="space-y-4">
+                  {projects.map((project) => (
+                    <Link 
+                      key={project.id}
+                      href={`/tr/org/spektif/board/${project.id}`}
+                    >
+                      <div 
+                        className="p-4 bg-purple-700/50 rounded-lg hover:bg-purple-600/50 cursor-pointer transition-colors"
+                      >
+                        <div className="flex items-center justify-between mb-2">
+                          <h3 className="text-white font-medium">{project.name}</h3>
+                          <Badge className={
+                            project.status === 'completed' ? 'bg-green-500/20 text-green-400' :
+                            project.status === 'active' ? 'bg-blue-500/20 text-blue-400' : 
+                            'bg-yellow-500/20 text-yellow-400'
+                          }>
+                            {project.status === 'completed' ? 'Tamamlandi' :
+                             project.status === 'active' ? 'Aktif' : 'Beklemede'}
+                          </Badge>
+                        </div>
+                        <p className="text-sm text-purple-300 mb-2">{project.description}</p>
+                        <div className="mb-2">
+                          <div className="flex items-center justify-between text-sm text-purple-300 mb-1">
+                            <span>{project.tasksCompleted}/{project.totalTasks} gorev</span>
+                            <span>%{project.progress}</span>
+                          </div>
+                          <Progress value={project.progress} className="h-2" />
+                        </div>
                       </div>
-                      <Progress value={project.progress} className="h-2" />
-                    </div>
-                    <div className="flex items-center text-sm text-purple-300">
-                      <Calendar className="w-4 h-4 mr-1" />
-                      Teslim: {new Date(project.dueDate).toLocaleDateString('tr-TR')}
-                    </div>
-                  </div>
-                ))}
-              </div>
+                    </Link>
+                  ))}
+                </div>
+              )}
             </CardContent>
           </Card>
 
