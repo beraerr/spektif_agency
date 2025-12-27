@@ -6,47 +6,25 @@ import { getFirestore } from "firebase-admin/firestore";
 import { getStorage } from "firebase-admin/storage";
 import { Request, Response } from "express";
 
-// Initialize Firebase Admin with NEW service account key
-admin.initializeApp({
-  credential: admin.credential.cert({
-    projectId: 'spektif-agency-final-prod',
-    clientEmail: 'firebase-adminsdk-fbsvc@spektif-agency-final-prod.iam.gserviceaccount.com',
-    privateKey: `-----BEGIN PRIVATE KEY-----
-MIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQCs8r1TuFgPUnWS
-bDMS+RPXptVVCo0gLOdH6yAHrJJmM//pLbkHCEORh0qpq6xsJEWWOW25cKB25pKS
-crPiTKDn9HBi9z3Ifyki73lWpThpaqkHVbXUo1pBzVBI34gGbWmNMMTIxssOM7qg
-6wcubv0VLyQT3jgwaIqjEWNZO+9fbM4Vec57ahzmqbGoLg5K7Cw6lB8fLB/WbXVF
-dSL65jA1495LziA+X5Dum+gnz8gXl9aFw0oR+X4bOfn3qnfU9uCJayeKSs+LFwHD
-ZkqmyQL9Rw+3fT8emq4GBSkC+Pl+rViJv5qJ2BJGYTmUEOJUiQ6hblZym0qVhUQt
-jAQpvk7bAgMBAAECggEAPdZC5HLGpZ/Voudl8ZQ2SIaBw3jU0drMTRYgKy5EYB+a
-kjyDaiTFx/xoMTdNHJNxgA+DkGjZLvotEQjLEZBVfeoT3wbIw+3XfwLBzz2e6G43
-BoTaUS+g/2MSICQwZh/rvAxiZ+lQRAEx6wRt2mfbvJ3Q1/u9+mz+mOSIMakw4tyV
-bbFzqTHg7CinMNb5AaqfOLLZORW/lOXF6/heyXULYAbhBJblMXQTPxkISNfppr79
-np9obhUieKU5vzN132oWqWp/1vrUUs3a2slmgiHnxMlvyURayxcgVkBkmeUCAaRO
-pzz6f1ZFRnkwatHFAhd8Y3+l032R+J5EW8q9xDOiUQKBgQDVJgt7o4UxKCKJFF2b
-fSBs5TPrVXjCBEd7wG2sR2qqaRDkrjVhlB0v2c7XkP+AkSqK+h2r1BjnqxzRIuBg
-xl0pD1JGWj5zud/4GKo+z2vh+p0pXgbvqmT6+tx5+HfY3E/rOeErSo8/AOLaBrAI
-lYkjJYyxiWlWH0ioUQIv0sYoKwKBgQDPt7stVhJxrcjaJwKquNLuitjw1bO7DDoq
-gphb7miICJH1vNI9bfHl5metON9y5Ua1oEBN+dG+1eT9Y4WxfRtzQXieOSAGmzSP
-v3TceFmbUbFfJ+Y8foS0TSHpb/2wnlzr1XmF84yprstsSQYnM0vdfTmMcsZWsod6
-ZGDz86rsEQKBgQC3T8fyZliHRTgmYmB6+Crp3FlBnLmFSr7bnEv2LVl8A24m7fg0
-2ngbjhvI4wgKX06SRbc87uUYYN4gsvj74b1/MZEVtkkdqA8JxNStvh/PMoT1bctT
-VV0RSKxTLbCMzjThXV7cp3v4uF9hGP1N9KUDmCifC0mPaspHD5xs2r3XDwKBgFv3
-9IchOe9dS7XTWenvBW2aymzvobFqu4JA6mahy2SXrtCH9uo9+MGa30KiEMVVYJZg
-Srh7qPN+zvGmE/a+9t10GoyrrFNgesg+s+Y93ybW59rC1rzoI6eVEzPBYyjFJU1B
-6pl1eU1T2DuspW3L14ZMwKM/2jNevn9hXFAHDiGRAoGBAJ5sJ9Kvr+bLwHfNbpuz
-ICi9xDtZ+gsqtVBApk0KQcc2/lFAbAAZHOMwNPKf6FwknvMn0oOiUbFFQlcRlefF
-zXTekLc5OoQp1sb328BntujGvwSXcbFvPwN1hXQ5Cennmfhp5yi6y8uHk0bHq5O/
-qZ1DMDWJHOVMxQiKssl7NHIM
------END PRIVATE KEY-----`,
-  }),
-  storageBucket: 'spektif-agency-final-prod.firebasestorage.app',
-});
+// Initialize Firebase Admin
+// In development/emulator mode, credentials are not needed
+// In production, set GOOGLE_APPLICATION_CREDENTIALS environment variable
+if (process.env.FUNCTIONS_EMULATOR === 'true') {
+  // Running in emulator - no credentials needed
+  admin.initializeApp({
+    projectId: 'spektif-agency-dev',
+    storageBucket: 'spektif-agency-dev.appspot.com',
+  });
+} else {
+  // Production - use environment variables or default credentials
+  admin.initializeApp();
+}
 
-// CLEAN SETUP: USE SPEKTIF DATABASE ONLY
-const db = getFirestore(admin.app(), "spektif");
+// Use default database in development, 'spektif' in production
+const isEmulator = process.env.FUNCTIONS_EMULATOR === 'true';
+const db = isEmulator ? getFirestore(admin.app()) : getFirestore(admin.app(), "spektif");
 const storage = getStorage(admin.app());
-console.log("🔥 CLEAN SETUP: USING SPEKTIF DATABASE");
+console.log(isEmulator ? "🔥 DEV MODE: Using Firebase Emulators" : "🔥 PROD MODE: Using Spektif Database");
 
 // Set global options for cost control and region
 setGlobalOptions({ 
@@ -144,7 +122,19 @@ export const getBoard = onRequest(
           return res.status(400).json({ error: 'Board ID is required' });
         }
 
-        const boardDoc = await db.collection('boards').doc(boardId as string).get();
+        // Get board data and all related data in parallel
+        const [boardDoc, listsSnapshot, cardsSnapshot] = await Promise.all([
+          db.collection('boards').doc(boardId as string).get(),
+          db.collection('boards')
+            .doc(boardId as string)
+            .collection('lists')
+            .orderBy('position', 'asc')
+            .get(),
+          db.collection('boards')
+            .doc(boardId as string)
+            .collection('cards')
+            .get()
+        ]);
         
         if (!boardDoc.exists) {
           return res.status(404).json({ error: 'Board not found' });
@@ -152,37 +142,36 @@ export const getBoard = onRequest(
 
         const boardData = boardDoc.data();
         
-        // Get lists for the board
-        const listsSnapshot = await db.collection('boards')
-          .doc(boardId as string)
-          .collection('lists')
-          .orderBy('position', 'asc')
-          .get();
+        // Group cards by listId for efficient processing
+        const cardsByListId = new Map();
+        cardsSnapshot.docs.forEach(cardDoc => {
+          const cardData = cardDoc.data();
+          const listId = cardData.listId;
+          if (!cardsByListId.has(listId)) {
+            cardsByListId.set(listId, []);
+          }
+          cardsByListId.get(listId).push({
+            id: cardDoc.id,
+            ...cardData
+          });
+        });
 
-        const lists = [];
-        for (const listDoc of listsSnapshot.docs) {
+        // Sort cards by position
+        cardsByListId.forEach(cards => {
+          cards.sort((a: any, b: any) => (a.position || 0) - (b.position || 0));
+        });
+
+        // Build lists with their cards
+        const lists = listsSnapshot.docs.map(listDoc => {
           const listData = listDoc.data();
+          const cards = cardsByListId.get(listDoc.id) || [];
           
-          // Get cards for each list
-          const cardsSnapshot = await db.collection('boards')
-            .doc(boardId as string)
-            .collection('cards')
-            .where('listId', '==', listDoc.id)
-            .get();
-
-          const cards = cardsSnapshot.docs
-            .map(cardDoc => ({
-              id: cardDoc.id,
-              ...cardDoc.data()
-            }))
-            .sort((a: any, b: any) => (a.position || 0) - (b.position || 0));
-
-          lists.push({
+          return {
             id: listDoc.id,
             ...listData,
             cards
-          });
-        }
+          };
+        });
 
         return res.json({
           id: boardDoc.id,
@@ -211,55 +200,72 @@ export const getBoards = onRequest(
         return res.status(400).json({ error: 'User ID is required' });
       }
 
+      // Optimized query with proper indexing
       const boardsSnapshot = await db.collection('boards')
         .where('members', 'array-contains', userId)
+        .orderBy('createdAt', 'desc')
+        .limit(50) // Limit to prevent large responses
         .get();
 
       const boards = [];
-      for (const doc of boardsSnapshot.docs) {
+      
+      // Use Promise.all for parallel processing
+      const boardPromises = boardsSnapshot.docs.map(async (doc) => {
         const boardData = doc.data();
         
-        // Get lists for each board
-        const listsSnapshot = await db.collection('boards')
-          .doc(doc.id)
-          .collection('lists')
-          .orderBy('position', 'asc')
-          .get();
-
-        const lists = [];
-        for (const listDoc of listsSnapshot.docs) {
-          const listData = listDoc.data();
-          
-          // Get cards for each list
-          const cardsSnapshot = await db.collection('boards')
+        // Get lists and cards in parallel
+        const [listsSnapshot, cardsSnapshot] = await Promise.all([
+          db.collection('boards')
+            .doc(doc.id)
+            .collection('lists')
+            .orderBy('position', 'asc')
+            .get(),
+          db.collection('boards')
             .doc(doc.id)
             .collection('cards')
-            .where('listId', '==', listDoc.id)
-            .get();
+            .get()
+        ]);
 
-          // Sort by position in memory to avoid composite index requirement
-          const cards = cardsSnapshot.docs
-            .map(cardDoc => ({
-              id: cardDoc.id,
-              ...cardDoc.data()
-            }))
-            .sort((a: any, b: any) => (a.position || 0) - (b.position || 0));
+        // Group cards by listId for efficient processing
+        const cardsByListId = new Map();
+        cardsSnapshot.docs.forEach(cardDoc => {
+          const cardData = cardDoc.data();
+          const listId = cardData.listId;
+          if (!cardsByListId.has(listId)) {
+            cardsByListId.set(listId, []);
+          }
+          cardsByListId.get(listId).push({
+            id: cardDoc.id,
+            ...cardData
+          });
+        });
 
-          lists.push({
+        // Sort cards by position
+        cardsByListId.forEach(cards => {
+          cards.sort((a: any, b: any) => (a.position || 0) - (b.position || 0));
+        });
+
+        // Build lists with their cards
+        const lists = listsSnapshot.docs.map(listDoc => {
+          const listData = listDoc.data();
+          const cards = cardsByListId.get(listDoc.id) || [];
+          
+          return {
             id: listDoc.id,
             ...listData,
             cards
-          });
-        }
+          };
+        });
 
-        boards.push({
+        return {
           id: doc.id,
           ...boardData,
           lists
-        });
-      }
+        };
+      });
 
-      return res.json(boards);
+      const boardsResult = await Promise.all(boardPromises);
+      return res.json(boardsResult);
     } catch (error) {
       logger.error('Get boards error:', error);
       return res.status(500).json({ error: 'Internal server error' });

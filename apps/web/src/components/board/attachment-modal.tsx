@@ -32,6 +32,8 @@ export function AttachmentModal({ isOpen, onClose, onUpload, onAddLink, boardId,
   const [linkUrl, setLinkUrl] = useState('')
   const [displayText, setDisplayText] = useState('')
   const [dragOver, setDragOver] = useState(false)
+  const [uploading, setUploading] = useState(false)
+  const [uploadProgress, setUploadProgress] = useState(0)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const recentItems: RecentItem[] = [
@@ -81,7 +83,42 @@ export function AttachmentModal({ isOpen, onClose, onUpload, onAddLink, boardId,
     const file = event.target.files?.[0]
     if (file && boardId && cardId) {
       try {
-        const apiUrl = process.env.NEXT_PUBLIC_FIREBASE_FUNCTIONS_URL || 'https://europe-west4-spektif-agency-final-prod.cloudfunctions.net'
+        setUploading(true)
+        setUploadProgress(0)
+
+        // File size validation (10MB limit)
+        const maxSize = 10 * 1024 * 1024 // 10MB
+        if (file.size > maxSize) {
+          alert('File size must be less than 10MB')
+          setUploading(false)
+          return
+        }
+
+        // File type validation
+        const allowedTypes = [
+          'image/jpeg', 'image/png', 'image/gif', 'image/webp',
+          'application/pdf', 'text/plain', 'application/msword',
+          'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+          'application/vnd.ms-excel',
+          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        ]
+        
+        if (!allowedTypes.includes(file.type)) {
+          alert('File type not supported')
+          setUploading(false)
+          return
+        }
+
+        // Simulate progress for base64 conversion
+        setUploadProgress(25)
+        const fileData = await fileToBase64(file)
+        setUploadProgress(50)
+
+        const apiUrl = process.env.NODE_ENV === 'development' 
+          ? 'http://localhost:5001/spektif-agency-final-prod/europe-west4'
+          : process.env.NEXT_PUBLIC_FIREBASE_FUNCTIONS_URL || 'https://europe-west4-spektif-agency-final-prod.cloudfunctions.net'
+        
+        setUploadProgress(75)
         const response = await fetch(`${apiUrl}/uploadFile`, {
           method: 'POST',
           headers: {
@@ -93,19 +130,27 @@ export function AttachmentModal({ isOpen, onClose, onUpload, onAddLink, boardId,
             cardId,
             fileName: file.name,
             fileType: file.type,
-            fileData: await fileToBase64(file)
+            fileData
           })
         })
+        
+        setUploadProgress(100)
         
         if (response.ok) {
           const result = await response.json()
           onUpload(file, displayText || result.fileName)
           onClose()
         } else {
-          console.error('File upload failed')
+          const error = await response.json()
+          console.error('File upload failed:', error)
+          alert(`Upload failed: ${error.error || 'Unknown error'}`)
         }
       } catch (error) {
         console.error('File upload error:', error)
+        alert('Upload failed. Please try again.')
+      } finally {
+        setUploading(false)
+        setUploadProgress(0)
       }
     }
   }
@@ -183,19 +228,38 @@ export function AttachmentModal({ isOpen, onClose, onUpload, onAddLink, boardId,
               onDragOver={handleDragOver}
               onDragLeave={handleDragLeave}
             >
-              <Upload className="w-8 h-8 mx-auto mb-2 text-gray-400" />
-              <Button 
-                onClick={() => fileInputRef.current?.click()}
-                className="bg-blue-600 hover:bg-blue-700 text-white"
-              >
-                Choose a file
-              </Button>
+              {uploading ? (
+                <div className="space-y-3">
+                  <div className="w-8 h-8 mx-auto mb-2">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+                  </div>
+                  <p className="text-sm text-gray-400">Uploading... {uploadProgress}%</p>
+                  <div className="w-full bg-gray-700 rounded-full h-2">
+                    <div 
+                      className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                      style={{ width: `${uploadProgress}%` }}
+                    ></div>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <Upload className="w-8 h-8 mx-auto mb-2 text-gray-400" />
+                  <Button 
+                    onClick={() => fileInputRef.current?.click()}
+                    className="bg-blue-600 hover:bg-blue-700 text-white"
+                    disabled={uploading}
+                  >
+                    Choose a file
+                  </Button>
+                </>
+              )}
               <input
                 ref={fileInputRef}
                 type="file"
                 onChange={handleFileSelect}
                 className="hidden"
                 accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.txt,.csv,.xlsx"
+                disabled={uploading}
               />
             </div>
           </div>

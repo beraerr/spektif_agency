@@ -1,10 +1,17 @@
 import { getSession } from 'next-auth/react'
+import { cache, cacheKeys, cacheTTL } from './cache'
 
-// Firebase Functions URL - deployed in europe-west4 for Turkey optimization
-const FIREBASE_FUNCTIONS_URL = process.env.NEXT_PUBLIC_FIREBASE_FUNCTIONS_URL || 'https://europe-west4-spektif-agency-final-prod.cloudfunctions.net'
-// Always use Firebase Functions - no more dual API system
+// Firebase Functions URL - ALWAYS use emulators in development
 const getApiUrl = () => {
-  return FIREBASE_FUNCTIONS_URL
+  // Always use emulators for local development
+  if (typeof window !== 'undefined' && window.location.hostname === 'localhost') {
+    return 'http://localhost:5001/spektif-agency-dev/europe-west4'
+  }
+  if (process.env.NODE_ENV === 'development') {
+    return 'http://localhost:5001/spektif-agency-dev/europe-west4'
+  }
+  // Production URL (when deployed)
+  return process.env.NEXT_PUBLIC_FIREBASE_FUNCTIONS_URL || 'http://localhost:5001/spektif-agency-dev/europe-west4'
 }
 
 class ApiClient {
@@ -154,7 +161,16 @@ class ApiClient {
 
   // Boards
   async getBoards(organizationId: string) {
-    return this.request(`/getBoards?userId=${organizationId}`)
+    const cacheKey = cacheKeys.boards(organizationId)
+    const cached = cache.get(cacheKey)
+    if (cached) {
+      console.log('📦 Cache hit for boards')
+      return cached
+    }
+
+    const data = await this.request(`/getBoards?userId=${organizationId}`)
+    cache.set(cacheKey, data, cacheTTL.medium)
+    return data
   }
 
   async getEmployeeBoards(organizationId: string) {
@@ -172,7 +188,16 @@ class ApiClient {
   }
 
   async getBoard(boardId: string) {
-    return this.request(`/getBoard?boardId=${boardId}`)
+    const cacheKey = cacheKeys.board(boardId)
+    const cached = cache.get(cacheKey)
+    if (cached) {
+      console.log('📦 Cache hit for board')
+      return cached
+    }
+
+    const data = await this.request(`/getBoard?boardId=${boardId}`)
+    cache.set(cacheKey, data, cacheTTL.medium)
+    return data
   }
 
   async createBoard(data: {
@@ -182,10 +207,14 @@ class ApiClient {
     color?: string
     userId?: string
   }) {
-    return this.request('/createBoard', {
+    const result = await this.request('/createBoard', {
       method: 'POST',
       body: JSON.stringify(data),
     })
+    
+    // Invalidate boards cache
+    cache.invalidatePattern(`boards_${data.organizationId}`)
+    return result
   }
 
   async updateBoard(boardId: string, data: Partial<{

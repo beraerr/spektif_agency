@@ -27,8 +27,10 @@ export const authOptions: NextAuthOptions = {
         }
 
         try {
-          // Always use Firebase Functions - no more dual API system
-          const apiUrl = process.env.NEXT_PUBLIC_FIREBASE_FUNCTIONS_URL || 'https://europe-west4-spektif-agency-final-prod.cloudfunctions.net'
+          // Use local emulators for development
+          const apiUrl = process.env.NODE_ENV === 'development' 
+            ? 'http://localhost:5001/spektif-agency-dev/europe-west4'
+            : (process.env.NEXT_PUBLIC_FIREBASE_FUNCTIONS_URL || 'http://localhost:5001/spektif-agency-dev/europe-west4')
           console.log('🔐 NextAuth trying to login with API URL:', apiUrl)
           const response = await fetch(`${apiUrl}/login`, {
             method: 'POST',
