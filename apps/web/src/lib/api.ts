@@ -320,6 +320,7 @@ class ApiClient {
     position: number
     members: string[]
     attachments: any[]
+    labels: string[]
   }>) {
     return this.request('/updateCard', {
       method: 'POST',

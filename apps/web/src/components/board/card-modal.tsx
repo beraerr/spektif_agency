@@ -649,8 +649,28 @@ export function CardModal({ card, isOpen, onClose, onUpdate, boardId }: CardModa
           isOpen={showLabelPicker}
           onClose={() => setShowLabelPicker(false)}
           currentLabels={card?.labels || []}
-          onSave={(labels) => {
-            // Update card labels logic here
+          onSave={async (labels) => {
+            try {
+              const updatedCard = {
+                ...card,
+                labels: labels
+              }
+              
+              // Update UI immediately
+              onUpdate?.(updatedCard)
+              
+              // Save to backend
+              await apiClient.updateCard(card.id, {
+                labels: labels
+              })
+              
+              toast.success('Labels updated successfully!')
+            } catch (error) {
+              console.error('Failed to update labels:', error)
+              toast.error('Failed to update labels')
+              // Revert UI change on error
+              onUpdate?.(card)
+            }
           }}
         />
 
