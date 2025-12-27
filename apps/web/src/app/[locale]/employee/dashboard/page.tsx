@@ -62,27 +62,26 @@ export default function EmployeeDashboardPage() {
         const boardsData = await apiClient.getBoards(user.id, 'employee') as any[]
         setBoards(boardsData || [])
 
-          // Extract tasks from all boards
-          const allTasks: Task[] = []
-          boardsData.forEach((board: any) => {
-            board.lists?.forEach((list: any) => {
-              list.cards?.forEach((card: any) => {
-                if (card.members?.includes(user.name) || card.members?.includes(`${user.name} ${user.surname}`)) {
-                  allTasks.push({
-                    id: card.id,
-                    title: card.title,
-                    dueDate: card.dueDate || '',
-                    status: list.title.toLowerCase().includes('tamamlan') ? 'completed' :
-                            list.title.toLowerCase().includes('devam') ? 'in_progress' : 'pending',
-                    boardName: board.title,
-                    boardId: board.id
-                  })
-                }
-              })
+        // Extract tasks from all boards
+        const allTasks: Task[] = []
+        boardsData.forEach((board: any) => {
+          board.lists?.forEach((list: any) => {
+            list.cards?.forEach((card: any) => {
+              if (card.members?.includes(user.name) || card.members?.includes(`${user.name} ${user.surname}`)) {
+                allTasks.push({
+                  id: card.id,
+                  title: card.title,
+                  dueDate: card.dueDate || '',
+                  status: list.title.toLowerCase().includes('tamamlan') ? 'completed' :
+                          list.title.toLowerCase().includes('devam') ? 'in_progress' : 'pending',
+                  boardName: board.title,
+                  boardId: board.id
+                })
+              }
             })
           })
-          setTasks(allTasks)
-        }
+        })
+        setTasks(allTasks)
       } catch (error) {
         console.error('Error loading data:', error)
       } finally {
