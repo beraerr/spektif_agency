@@ -26,9 +26,6 @@ import { CardModal } from '@/components/board/card-modal'
 import { ThemeSwitcher } from '@/components/theme-switcher'
 import { LanguageSwitcher } from '@/components/language-switcher'
 
-// Default background for boards
-const defaultBackgroundImage = 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=1920&h=1080&fit=crop&crop=center'
-
 export default function BoardPage() {
   const params = useParams()
   const orgId = params.orgId as string
@@ -62,17 +59,7 @@ export default function BoardPage() {
 
   const [selectedCard, setSelectedCard] = useState<CardData | null>(null)
   const [isCardModalOpen, setIsCardModalOpen] = useState(false)
-  const [boardBackground, setBoardBackground] = useState<string>('')
-
-  // Load board background from localStorage
-  useEffect(() => {
-    const saved = localStorage.getItem('boardBackgrounds')
-    if (saved) {
-      const backgrounds = JSON.parse(saved) as Record<string, string>
-      const boardIdStr = Array.isArray(boardId) ? boardId[0] : boardId
-      setBoardBackground(backgrounds[boardIdStr] || '')
-    }
-  }, [boardId])
+  // Background is handled by the layout
 
   // Polling for updates
   useEffect(() => {
@@ -259,22 +246,8 @@ export default function BoardPage() {
     )
   }
 
-  // Get the background image (custom or default)
-  const backgroundImage = boardBackground || defaultBackgroundImage
-
   return (
-    <div 
-      className="min-h-screen relative overflow-hidden"
-      style={{
-        backgroundImage: `url("${backgroundImage}")`,
-        backgroundSize: 'cover',
-        backgroundPosition: 'center',
-        backgroundRepeat: 'no-repeat',
-        backgroundAttachment: 'fixed'
-      }}
-    >
-      {/* Overlay for better contrast */}
-      <div className="absolute inset-0 bg-black/30" />
+    <div className="min-h-screen relative overflow-hidden">
       
       {/* Header */}
       <header className="relative z-10 bg-black/10 dark:bg-black/30 backdrop-blur-sm border-b border-white/10 dark:border-white/20">

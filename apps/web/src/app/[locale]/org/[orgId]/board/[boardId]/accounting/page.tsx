@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
-import { useBoardBackground } from '@/hooks/use-board-background'
+// Background is now handled by the layout
 import { 
   TrendingUp, 
   TrendingDown, 
@@ -208,7 +208,7 @@ export default function BoardAccountingPage() {
   const [filterType, setFilterType] = useState<'all' | 'income' | 'expense'>('all')
   const [filterStatus, setFilterStatus] = useState<'all' | 'pending' | 'completed'>('all')
   const [searchTerm, setSearchTerm] = useState('')
-  const { boardBackground } = useBoardBackground(boardId as string)
+  // Background is handled by layout
   useEffect(() => {
     let filtered = transactions
 
@@ -263,40 +263,17 @@ export default function BoardAccountingPage() {
 
   if (loading) {
     return (
-      <div 
-        className="min-h-screen flex items-center justify-center relative"
-        style={boardBackground ? {
-          backgroundImage: `url(${boardBackground})`,
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
-          backgroundAttachment: 'fixed'
-        } : {
-          background: 'linear-gradient(135deg, #3b82f6 0%, #1e40af 100%)'
-        }}
-      >
-        <div className="absolute inset-0 bg-black/50"></div>
+      <div className="min-h-screen flex items-center justify-center relative">
         <div className="text-center relative z-10">
           <div className="w-12 h-12 border-4 border-white border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-lg font-medium text-white">Muhasebe verileri yükleniyor...</p>
+          <p className="text-lg font-medium text-white">Muhasebe verileri yukleniyor...</p>
         </div>
       </div>
     )
   }
 
   return (
-    <div 
-      className="min-h-screen relative pb-24"
-      style={boardBackground ? {
-        backgroundImage: `url(${boardBackground})`,
-        backgroundSize: 'cover',
-        backgroundPosition: 'center',
-        backgroundAttachment: 'fixed'
-      } : {
-        background: 'linear-gradient(135deg, #3b82f6 0%, #1e40af 100%)'
-      }}
-    >
-      {/* Dark overlay */}
-      <div className="absolute inset-0 bg-black/40"></div>
+    <div className="min-h-screen relative pb-24">
       {/* Header */}
       <div className="bg-white border-b border-gray-200 px-6 py-4">
         <div className="max-w-7xl mx-auto">

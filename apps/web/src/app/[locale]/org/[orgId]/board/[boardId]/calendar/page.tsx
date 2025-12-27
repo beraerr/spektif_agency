@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Clock, Plus, X, CheckCircle2, AlertCircle } from 'lucide-react'
-import { useBoardBackground } from '@/hooks/use-board-background'
+// Background is now handled by the layout
 
 interface CalendarEvent {
   id: string
@@ -135,7 +135,7 @@ export default function BoardCalendarPage() {
   const [newTaskType, setNewTaskType] = useState<'deadline' | 'note' | 'task'>('task')
   const [newTaskTitle, setNewTaskTitle] = useState('')
   const [newTaskDescription, setNewTaskDescription] = useState('')
-  const { boardBackground } = useBoardBackground(boardId as string)
+  // Background is handled by layout
 
   const today = new Date()
   const currentMonth = currentDate.getMonth()
@@ -237,40 +237,17 @@ export default function BoardCalendarPage() {
 
   if (loading) {
     return (
-      <div 
-        className="min-h-screen flex items-center justify-center relative"
-        style={boardBackground ? {
-          backgroundImage: `url(${boardBackground})`,
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
-          backgroundAttachment: 'fixed'
-        } : {
-          background: 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)'
-        }}
-      >
-        <div className="absolute inset-0 bg-black/50"></div>
+      <div className="min-h-screen flex items-center justify-center relative">
         <div className="text-center relative z-10">
           <div className="w-12 h-12 border-4 border-white border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-lg font-medium text-white">Planner yükleniyor...</p>
+          <p className="text-lg font-medium text-white">Planner yukleniyor...</p>
         </div>
       </div>
     )
   }
 
   return (
-    <div 
-      className="min-h-screen relative"
-      style={boardBackground ? {
-        backgroundImage: `url(${boardBackground})`,
-        backgroundSize: 'cover',
-        backgroundPosition: 'center',
-        backgroundAttachment: 'fixed'
-      } : {
-        background: 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)'
-      }}
-    >
-      {/* Dark overlay for better readability */}
-      <div className="absolute inset-0 bg-black/40"></div>
+    <div className="min-h-screen relative">
       
       {/* Trello-style header */}
       <div className="relative z-10 bg-black/20 backdrop-blur-md border-b border-white/10 px-6 py-4 sticky top-0">

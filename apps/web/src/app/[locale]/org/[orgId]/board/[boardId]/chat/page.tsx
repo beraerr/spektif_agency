@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Send, Paperclip, Smile, Phone, Video, Search, MoreVertical, User } from 'lucide-react'
-import { useBoardBackground } from '@/hooks/use-board-background'
+// Background is now handled by the layout
 
 interface ChatMessage {
   id: string
@@ -155,7 +155,7 @@ export default function BoardChatPage() {
   const { messages, participants, loading, setMessages } = useBoardChat(boardId as string)
   const [newMessage, setNewMessage] = useState('')
   const [isTyping, setIsTyping] = useState(false)
-  const { boardBackground } = useBoardBackground(boardId as string)
+  // Background is handled by layout
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const { data: session } = useSession()
 
@@ -258,40 +258,17 @@ export default function BoardChatPage() {
 
   if (loading) {
     return (
-      <div 
-        className="min-h-screen flex items-center justify-center relative"
-        style={boardBackground ? {
-          backgroundImage: `url(${boardBackground})`,
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
-          backgroundAttachment: 'fixed'
-        } : {
-          background: 'linear-gradient(135deg, #16a085 0%, #0d7c66 100%)'
-        }}
-      >
-        <div className="absolute inset-0 bg-black/50"></div>
+      <div className="min-h-screen flex items-center justify-center relative">
         <div className="text-center relative z-10">
           <div className="w-12 h-12 border-4 border-white border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-lg font-medium text-white">Chat yükleniyor...</p>
+          <p className="text-lg font-medium text-white">Chat yukleniyor...</p>
         </div>
       </div>
     )
   }
 
   return (
-    <div 
-      className="h-screen flex flex-col relative"
-      style={boardBackground ? {
-        backgroundImage: `url(${boardBackground})`,
-        backgroundSize: 'cover',
-        backgroundPosition: 'center',
-        backgroundAttachment: 'fixed'
-      } : {
-        background: 'linear-gradient(135deg, #16a085 0%, #0d7c66 100%)'
-      }}
-    >
-      {/* Dark overlay */}
-      <div className="absolute inset-0 bg-black/40"></div>
+    <div className="h-screen flex flex-col relative">
       {/* WhatsApp-style Header */}
       <div className="relative z-10 bg-green-600/80 backdrop-blur-md text-white px-6 py-4 flex items-center justify-between">
         <div className="flex items-center space-x-4">

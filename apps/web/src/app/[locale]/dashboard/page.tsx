@@ -334,14 +334,23 @@ function TemplatesView({ session }: { session: any }) {
     }
   }, [])
 
-  // Save backgrounds to localStorage and board context
-  const saveBoardBackground = (boardId: string, backgroundUrl: string) => {
+  // Save backgrounds to localStorage, board context, and database
+  const saveBoardBackground = async (boardId: string, backgroundUrl: string) => {
     const newBackgrounds = { ...boardBackgrounds, [boardId]: backgroundUrl }
     setBoardBackgrounds(newBackgrounds)
     localStorage.setItem('boardBackgrounds', JSON.stringify(newBackgrounds))
     
     // Also save to global context for use in board pages
     localStorage.setItem(`boardBackground_${boardId}`, backgroundUrl)
+    
+    // Save to database so all users see the same background
+    try {
+      await apiClient.updateBoardBackground(boardId, backgroundUrl)
+      toast.success('Arkaplan kaydedildi!')
+    } catch (error) {
+      console.error('Error saving background to database:', error)
+      toast.error('Arkaplan kaydedilemedi')
+    }
   }
 
   // Handle file upload
@@ -458,6 +467,17 @@ function TemplatesView({ session }: { session: any }) {
           const data = await response.json()
           setBoards(data)
           console.log('Boards loaded:', data.length)
+          
+          // Load backgrounds from database
+          const bgFromDb: {[key: string]: string} = {}
+          data.forEach((board: any) => {
+            if (board.backgroundUrl) {
+              bgFromDb[board.id] = board.backgroundUrl
+            }
+          })
+          if (Object.keys(bgFromDb).length > 0) {
+            setBoardBackgrounds(prev => ({ ...prev, ...bgFromDb }))
+          }
         }
       } catch (error) {
         console.error('Error fetching boards:', error)
