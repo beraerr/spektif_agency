@@ -5,13 +5,13 @@ import { cache, cacheKeys, cacheTTL } from './cache'
 const getApiUrl = () => {
   // Always use emulators for local development
   if (typeof window !== 'undefined' && window.location.hostname === 'localhost') {
-    return 'http://localhost:5001/spektif-agency-dev/europe-west4'
+    return 'http://localhost:5001/spektif-agency-final-prod/europe-west4'
   }
   if (process.env.NODE_ENV === 'development') {
-    return 'http://localhost:5001/spektif-agency-dev/europe-west4'
+    return 'http://localhost:5001/spektif-agency-final-prod/europe-west4'
   }
   // Production URL (when deployed)
-  return process.env.NEXT_PUBLIC_FIREBASE_FUNCTIONS_URL || 'http://localhost:5001/spektif-agency-dev/europe-west4'
+  return process.env.NEXT_PUBLIC_FIREBASE_FUNCTIONS_URL || 'http://localhost:5001/spektif-agency-final-prod/europe-west4'
 }
 
 class ApiClient {

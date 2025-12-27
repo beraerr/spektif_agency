@@ -2,7 +2,7 @@ import { setGlobalOptions } from "firebase-functions";
 import { onRequest } from "firebase-functions/v2/https";
 import * as logger from "firebase-functions/logger";
 import * as admin from "firebase-admin";
-import { getFirestore } from "firebase-admin/firestore";
+import { getFirestore, FieldValue } from "firebase-admin/firestore";
 import { getStorage } from "firebase-admin/storage";
 import { Request, Response } from "express";
 
@@ -293,8 +293,8 @@ export const createBoard = onRequest(
         organizationId: organizationId || '',
         color: color || '#3B82F6',
         members: [userId],
-        createdAt: admin.firestore.FieldValue.serverTimestamp(),
-        updatedAt: admin.firestore.FieldValue.serverTimestamp()
+        createdAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp()
       };
 
       const docRef = await db.collection('boards').add(boardData);
@@ -327,7 +327,7 @@ export const updateBoard = onRequest(
 
       await db.collection('boards').doc(boardId).update({
         ...updateData,
-        updatedAt: admin.firestore.FieldValue.serverTimestamp()
+        updatedAt: FieldValue.serverTimestamp()
       });
 
       const updatedDoc = await db.collection('boards').doc(boardId).get();
@@ -364,8 +364,8 @@ export const createList = onRequest(
       const listData = {
         title,
         position: position || 0,
-        createdAt: admin.firestore.FieldValue.serverTimestamp(),
-        updatedAt: admin.firestore.FieldValue.serverTimestamp()
+        createdAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp()
       };
 
       const docRef = await db.collection('boards')
@@ -415,7 +415,7 @@ export const updateList = onRequest(
       }
       await listRef.update({
         ...updateData,
-        updatedAt: admin.firestore.FieldValue.serverTimestamp()
+        updatedAt: FieldValue.serverTimestamp()
       });
 
       const updatedDoc = await listRef.get();
@@ -457,8 +457,8 @@ export const createCard = onRequest(
         position: position || 0,
         members: [],
         comments: [],
-        createdAt: admin.firestore.FieldValue.serverTimestamp(),
-        updatedAt: admin.firestore.FieldValue.serverTimestamp()
+        createdAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp()
       };
 
       const docRef = await db.collection('boards')
@@ -511,7 +511,7 @@ export const updateCard = onRequest(
 
       await cardRef.update({
         ...updateData,
-        updatedAt: admin.firestore.FieldValue.serverTimestamp()
+        updatedAt: FieldValue.serverTimestamp()
       });
 
       const updatedDoc = await cardRef.get();
@@ -582,7 +582,7 @@ export const uploadFile = onRequest(
         mimeType: fileType || 'application/octet-stream',
         boardId,
         cardId: cardId || null,
-        uploadedAt: admin.firestore.FieldValue.serverTimestamp()
+        uploadedAt: FieldValue.serverTimestamp()
       });
 
       return res.json({
@@ -944,8 +944,8 @@ export const seedDatabase = onRequest(
         name: 'Admin User',
         role: 'ADMIN',
         organizationId: 'spektif',
-        createdAt: admin.firestore.FieldValue.serverTimestamp(),
-        updatedAt: admin.firestore.FieldValue.serverTimestamp()
+        createdAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp()
       };
 
       await db.collection('users').doc('admin').set(adminUser);
@@ -956,8 +956,8 @@ export const seedDatabase = onRequest(
         id: 'spektif',
         name: 'Spektif Agency',
         members: ['admin'],
-        createdAt: admin.firestore.FieldValue.serverTimestamp(),
-        updatedAt: admin.firestore.FieldValue.serverTimestamp()
+        createdAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp()
       };
 
       await db.collection('organizations').doc('spektif').set(organization);
@@ -971,8 +971,8 @@ export const seedDatabase = onRequest(
         organizationId: 'spektif',
         members: ['admin'],
         color: '#3B82F6',
-        createdAt: admin.firestore.FieldValue.serverTimestamp(),
-        updatedAt: admin.firestore.FieldValue.serverTimestamp()
+        createdAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp()
       };
 
       await db.collection('boards').doc('sample-board-1').set(board);
@@ -985,24 +985,24 @@ export const seedDatabase = onRequest(
           title: 'Yapılacaklar',
           position: 0,
           boardId: 'sample-board-1',
-          createdAt: admin.firestore.FieldValue.serverTimestamp(),
-          updatedAt: admin.firestore.FieldValue.serverTimestamp()
+          createdAt: FieldValue.serverTimestamp(),
+          updatedAt: FieldValue.serverTimestamp()
         },
         {
           id: 'list-2',
           title: 'Devam Eden',
           position: 1,
           boardId: 'sample-board-1',
-          createdAt: admin.firestore.FieldValue.serverTimestamp(),
-          updatedAt: admin.firestore.FieldValue.serverTimestamp()
+          createdAt: FieldValue.serverTimestamp(),
+          updatedAt: FieldValue.serverTimestamp()
         },
         {
           id: 'list-3',
           title: 'Tamamlandı',
           position: 2,
           boardId: 'sample-board-1',
-          createdAt: admin.firestore.FieldValue.serverTimestamp(),
-          updatedAt: admin.firestore.FieldValue.serverTimestamp()
+          createdAt: FieldValue.serverTimestamp(),
+          updatedAt: FieldValue.serverTimestamp()
         }
       ];
 
@@ -1022,8 +1022,8 @@ export const seedDatabase = onRequest(
           position: 0,
           members: ['admin'],
           dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-          createdAt: admin.firestore.FieldValue.serverTimestamp(),
-          updatedAt: admin.firestore.FieldValue.serverTimestamp()
+          createdAt: FieldValue.serverTimestamp(),
+          updatedAt: FieldValue.serverTimestamp()
         },
         {
           id: 'card-2',
@@ -1034,8 +1034,8 @@ export const seedDatabase = onRequest(
           position: 0,
           members: ['admin'],
           dueDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(),
-          createdAt: admin.firestore.FieldValue.serverTimestamp(),
-          updatedAt: admin.firestore.FieldValue.serverTimestamp()
+          createdAt: FieldValue.serverTimestamp(),
+          updatedAt: FieldValue.serverTimestamp()
         },
         {
           id: 'card-3',
@@ -1046,8 +1046,8 @@ export const seedDatabase = onRequest(
           position: 0,
           members: ['admin'],
           dueDate: new Date().toISOString(),
-          createdAt: admin.firestore.FieldValue.serverTimestamp(),
-          updatedAt: admin.firestore.FieldValue.serverTimestamp()
+          createdAt: FieldValue.serverTimestamp(),
+          updatedAt: FieldValue.serverTimestamp()
         }
       ];
 
@@ -1067,8 +1067,8 @@ export const seedDatabase = onRequest(
           phone: '+90 555 123 4567',
           role: 'employee',
           organizationId: 'spektif',
-          createdAt: admin.firestore.FieldValue.serverTimestamp(),
-          updatedAt: admin.firestore.FieldValue.serverTimestamp()
+          createdAt: FieldValue.serverTimestamp(),
+          updatedAt: FieldValue.serverTimestamp()
         },
         {
           id: 'emp-2',
@@ -1079,8 +1079,8 @@ export const seedDatabase = onRequest(
           phone: '+90 555 987 6543',
           role: 'employee',
           organizationId: 'spektif',
-          createdAt: admin.firestore.FieldValue.serverTimestamp(),
-          updatedAt: admin.firestore.FieldValue.serverTimestamp()
+          createdAt: FieldValue.serverTimestamp(),
+          updatedAt: FieldValue.serverTimestamp()
         }
       ];
 
@@ -1101,8 +1101,8 @@ export const seedDatabase = onRequest(
           notes: 'Ana müşteri - web tasarım projeleri',
           status: 'active',
           organizationId: 'spektif',
-          createdAt: admin.firestore.FieldValue.serverTimestamp(),
-          updatedAt: admin.firestore.FieldValue.serverTimestamp()
+          createdAt: FieldValue.serverTimestamp(),
+          updatedAt: FieldValue.serverTimestamp()
         },
         {
           id: 'client-2',
@@ -1114,8 +1114,8 @@ export const seedDatabase = onRequest(
           notes: 'Yeni müşteri - mobil uygulama geliştirme',
           status: 'active',
           organizationId: 'spektif',
-          createdAt: admin.firestore.FieldValue.serverTimestamp(),
-          updatedAt: admin.firestore.FieldValue.serverTimestamp()
+          createdAt: FieldValue.serverTimestamp(),
+          updatedAt: FieldValue.serverTimestamp()
         },
         {
           id: 'client-3',
@@ -1127,8 +1127,8 @@ export const seedDatabase = onRequest(
           notes: 'Tasarım odaklı projeler',
           status: 'inactive',
           organizationId: 'spektif',
-          createdAt: admin.firestore.FieldValue.serverTimestamp(),
-          updatedAt: admin.firestore.FieldValue.serverTimestamp()
+          createdAt: FieldValue.serverTimestamp(),
+          updatedAt: FieldValue.serverTimestamp()
         }
       ];
 
@@ -1277,7 +1277,7 @@ export const moveCard = onRequest(
         await cardRef.update({
           listId,
           position,
-          updatedAt: admin.firestore.FieldValue.serverTimestamp()
+          updatedAt: FieldValue.serverTimestamp()
         });
 
         return res.json({ success: true });
@@ -1309,7 +1309,7 @@ export const reorderLists = onRequest(
           const listRef = db.collection('boards').doc(boardId).collection('lists').doc(id);
           batch.update(listRef, {
             position,
-            updatedAt: admin.firestore.FieldValue.serverTimestamp()
+            updatedAt: FieldValue.serverTimestamp()
           });
         }
 
@@ -1340,7 +1340,7 @@ export const updateBoardBackground = onRequest(
 
       await db.collection('boards').doc(boardId).update({
         backgroundUrl,
-        updatedAt: admin.firestore.FieldValue.serverTimestamp()
+        updatedAt: FieldValue.serverTimestamp()
       });
 
       return res.json({ success: true });
@@ -1444,14 +1444,14 @@ export const addCardMember = onRequest(
       const newMember = {
         name: memberName,
         email: memberEmail || '',
-        addedAt: admin.firestore.FieldValue.serverTimestamp()
+        addedAt: FieldValue.serverTimestamp()
       };
 
       const updatedMembers = [...currentMembers, newMember];
 
       await cardRef.update({
         members: updatedMembers,
-        updatedAt: admin.firestore.FieldValue.serverTimestamp()
+        updatedAt: FieldValue.serverTimestamp()
       });
 
       return res.json({ 
@@ -1504,7 +1504,7 @@ export const removeCardMember = onRequest(
 
       await cardRef.update({
         members: updatedMembers,
-        updatedAt: admin.firestore.FieldValue.serverTimestamp()
+        updatedAt: FieldValue.serverTimestamp()
       });
 
       return res.json({ 
@@ -1613,7 +1613,7 @@ export const updateCardAttachments = onRequest(
 
         await cardRef.update({
           attachments: updatedAttachments,
-          updatedAt: admin.firestore.FieldValue.serverTimestamp()
+          updatedAt: FieldValue.serverTimestamp()
         });
 
         return res.json({ 
@@ -1673,7 +1673,7 @@ export const removeCardAttachment = onRequest(
 
       await cardRef.update({
         attachments: updatedAttachments,
-        updatedAt: admin.firestore.FieldValue.serverTimestamp()
+        updatedAt: FieldValue.serverTimestamp()
       });
 
       return res.json({ 
