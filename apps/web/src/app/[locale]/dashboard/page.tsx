@@ -11,9 +11,12 @@ import { Calendar, MessageSquare, Users, BarChart3, Home, UserCheck, Building2, 
 import { ThemeSwitcher } from '@/components/theme-switcher'
 import { LanguageSwitcher } from '@/components/language-switcher'
 import { apiClient } from '@/lib/api'
+import { cache, cacheKeys } from '@/lib/cache'
 import { toast } from 'sonner'
 import { CreateEmployeeModal } from '@/components/employee/create-employee-modal'
-import { EmployeeDashboard } from '@/components/employee/employee-dashboard'
+import { CreateClientModal } from '@/components/client/create-client-modal'
+import EmployeeDashboardPage from '@/app/[locale]/employee/dashboard/page'
+import ClientDashboardPage from '@/app/[locale]/client/dashboard/page'
 
 export default function DashboardPage() {
   const { data: session, status } = useSession()
@@ -27,32 +30,58 @@ export default function DashboardPage() {
     }
   }, [status, router])
 
+  // Show loading while session is loading
   if (status === 'loading') {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 to-slate-800">
         <div className="text-center">
-          <div className="w-8 h-8 bg-brand-primary rounded-full animate-spin mx-auto mb-4"></div>
-          <p>{t('common.loading')}</p>
+          <div className="w-12 h-12 border-4 border-green-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-white">Yukleniyor...</p>
         </div>
       </div>
     )
   }
 
+  // Wait for session to be available
   if (!session) {
-    return null
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 to-slate-800">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-green-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-white">Session yukleniyor...</p>
+        </div>
+      </div>
+    )
   }
 
-  const isAdmin = (session as any)?.user?.role === 'ADMIN'
-  const isEmployee = (session as any)?.user?.role === 'EMPLOYEE' || (session as any)?.user?.role === 'ACCOUNTANT'
+  const userRole = (session as any)?.user?.role
   
-  // Debug logs
-  console.log('🔍 Session Debug:', session)
-  console.log('🔍 User Role:', (session as any)?.user?.role)
-  console.log('🔍 isAdmin:', isAdmin)
-
-  // Show employee dashboard for employees
+  // Normalize role to uppercase for comparison (backend uses lowercase)
+  const normalizedRole = userRole?.toUpperCase()
+  
+  const isAdmin = normalizedRole === 'ADMIN'
+  const isEmployee = normalizedRole === 'EMPLOYEE' || normalizedRole === 'ACCOUNTANT'
+  const isClient = normalizedRole === 'CLIENT'
+  
+  // Show employee dashboard for employees - MUST return early
   if (isEmployee) {
-    return <EmployeeDashboard session={session} />
+    return <EmployeeDashboardPage />
+  }
+
+  // Show client dashboard for clients - MUST return early
+  if (isClient) {
+    return <ClientDashboardPage />
+  }
+
+  // Only show admin dashboard for admins
+  if (!isAdmin) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 to-slate-800">
+        <div className="text-center">
+          <p className="text-white">Yukleniyor...</p>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -92,24 +121,27 @@ export default function DashboardPage() {
             Şablonlar
           </Button>
 
-          <Button
-            variant={activeView === 'members' ? 'secondary' : 'ghost'}
-            className="w-full justify-start"
-            onClick={() => setActiveView('members')}
-          >
-            <UserCheck className="w-4 h-4 mr-3" />
-            Üyeler
-          </Button>
-
+          {/* Only show Members and Clients for Admin */}
           {isAdmin && (
-            <Button
-              variant={activeView === 'clients' ? 'secondary' : 'ghost'}
-              className="w-full justify-start"
-              onClick={() => setActiveView('clients')}
-            >
-              <Building2 className="w-4 h-4 mr-3" />
-              Müşteriler
-            </Button>
+            <>
+              <Button
+                variant={activeView === 'members' ? 'secondary' : 'ghost'}
+                className="w-full justify-start"
+                onClick={() => setActiveView('members')}
+              >
+                <UserCheck className="w-4 h-4 mr-3" />
+                Çalışanlar
+              </Button>
+
+              <Button
+                variant={activeView === 'clients' ? 'secondary' : 'ghost'}
+                className="w-full justify-start"
+                onClick={() => setActiveView('clients')}
+              >
+                <Building2 className="w-4 h-4 mr-3" />
+                Müşteriler
+              </Button>
+            </>
           )}
 
           {/* Logout Button */}
@@ -135,13 +167,13 @@ export default function DashboardPage() {
               <h2 className="text-xl font-semibold">
                 {activeView === 'home' && 'Ana Sayfa'}
                 {activeView === 'templates' && 'Şablonlar'}
-                {activeView === 'members' && 'Üyeler'}
+                {activeView === 'members' && 'Çalışanlar'}
                 {activeView === 'clients' && 'Müşteriler'}
               </h2>
               <p className="text-sm text-muted-foreground">
                 {activeView === 'home' && 'Projenize genel bakış'}
                 {activeView === 'templates' && 'Mevcut board şablonlarınız'}
-                {activeView === 'members' && 'Takım üyelerinizi yönetin'}
+                {activeView === 'members' && 'Çalışanlarınızı yönetin'}
                 {activeView === 'clients' && 'Müşteri bilgilerini yönetin'}
               </p>
             </div>
@@ -397,9 +429,8 @@ function TemplatesView({ session }: { session: any }) {
   const handlePinBoard = async (boardId: string, pinned: boolean) => {
     try {
       await apiClient.pinBoard(boardId, pinned)
-      setBoards(boards.map(board => 
-        board.id === boardId ? { ...board, pinned } : board
-      ))
+      // Reload boards to get fresh data (force refresh)
+      await loadBoards(true)
       toast.success(pinned ? 'Board pinlendi!' : 'Board pin kaldirildi!')
       setShowBoardSettings(null)
     } catch (error) {
@@ -424,11 +455,8 @@ function TemplatesView({ session }: { session: any }) {
         members: [...currentMembers, memberId]
       })
       
-      setBoards(boards.map(b => 
-        b.id === boardId 
-          ? { ...b, members: [...currentMembers, memberId] }
-          : b
-      ))
+      // Reload boards to get fresh data (force refresh)
+      await loadBoards(true)
       toast.success('Uye board\'a eklendi!')
     } catch (error) {
       console.error('Error adding board member:', error)
@@ -448,11 +476,8 @@ function TemplatesView({ session }: { session: any }) {
         members: newMembers
       })
       
-      setBoards(boards.map(b => 
-        b.id === boardId 
-          ? { ...b, members: newMembers }
-          : b
-      ))
+      // Reload boards to get fresh data (force refresh)
+      await loadBoards(true)
       toast.success('Uye board\'dan cikarildi!')
     } catch (error) {
       console.error('Error removing board member:', error)
@@ -471,7 +496,8 @@ function TemplatesView({ session }: { session: any }) {
       console.log('Delete board result:', result)
       
       if (result?.success) {
-        setBoards(boards.filter(board => board.id !== boardId))
+        // Reload boards to get fresh data (force refresh)
+        await loadBoards(true)
         toast.success('Board silindi!')
         setShowBoardSettings(null)
       } else {
@@ -488,12 +514,15 @@ function TemplatesView({ session }: { session: any }) {
   const handleCreateBoard = async () => {
     try {
       setIsCreating(true)
+      const user = session as any
+      const userId = user?.user?.id || 'admin'
+      
       const newBoard = await apiClient.createBoard({
         title: 'Yeni Board',
         description: 'Board açıklaması...',
         color: '#4ADE80',
         organizationId: 'spektif', // Default organization
-        userId: 'spektif' // User ID for board access
+        userId: userId // Use actual user ID
       })
       
       // Create default lists for the new board
@@ -515,8 +544,8 @@ function TemplatesView({ session }: { session: any }) {
         // Don't fail board creation if lists fail
       }
       
-      // Add to boards list
-      setBoards(prev => [...prev, newBoard])
+      // Reload boards from server to get fresh data (force refresh to bypass cache)
+      await loadBoards(true)
       toast.success('Board başarıyla oluşturuldu!')
       
       // Stay on templates page - no redirect
@@ -538,41 +567,46 @@ function TemplatesView({ session }: { session: any }) {
     'https://images.unsplash.com/photo-1464822759844-d150baec843a?w=800&h=600&fit=crop'
   ]
 
-  useEffect(() => {
-    const fetchBoards = async () => {
-      try {
-        const user = session as any
-        const userId = user?.user?.id || 'admin' // Use actual user ID from session
-        
-        // Use apiClient which handles emulator URLs correctly
-        const data = await apiClient.getBoards(userId) as any[]
-        setBoards(data)
-        console.log('Boards loaded:', data.length)
-        
-        // Load backgrounds from database
-        const bgFromDb: {[key: string]: string} = {}
-        data.forEach((board: any) => {
-          if (board.backgroundUrl) {
-            bgFromDb[board.id] = board.backgroundUrl
-          }
-        })
-        if (Object.keys(bgFromDb).length > 0) {
-          setBoardBackgrounds(prev => ({ ...prev, ...bgFromDb }))
-        }
-      } catch (error) {
-        console.error('Error fetching boards:', error)
-        toast.error('Boardlar yuklenirken hata olustu')
-      } finally {
-        setLoading(false)
+  // Load boards function - can be called from anywhere
+  const loadBoards = async (forceRefresh = false) => {
+    try {
+      const user = session as any
+      const userId = user?.user?.id || 'admin' // Use actual user ID from session
+      
+      // If force refresh, invalidate cache first
+      if (forceRefresh) {
+        cache.delete(cacheKeys.boards(userId))
       }
+      
+      // Use apiClient which handles emulator URLs correctly
+      const data = await apiClient.getBoards(userId) as any[]
+      setBoards(data || [])
+      console.log('Boards loaded:', data?.length || 0)
+      
+      // Load backgrounds from database
+      const bgFromDb: {[key: string]: string} = {}
+      data?.forEach((board: any) => {
+        if (board.backgroundUrl) {
+          bgFromDb[board.id] = board.backgroundUrl
+        }
+      })
+      if (Object.keys(bgFromDb).length > 0) {
+        setBoardBackgrounds(prev => ({ ...prev, ...bgFromDb }))
+      }
+    } catch (error) {
+      console.error('Error fetching boards:', error)
+      toast.error('Boardlar yuklenirken hata olustu')
+    } finally {
+      setLoading(false)
     }
+  }
 
+  useEffect(() => {
     if (session) {
-      fetchBoards() // Initial fetch
+      loadBoards()
       
-      // Set up real-time updates every 60 seconds
-      const interval = setInterval(fetchBoards, 60000)
-      
+      // Set up polling for real-time updates every 10 seconds
+      const interval = setInterval(loadBoards, 10000)
       return () => clearInterval(interval)
     }
   }, [session])
@@ -730,6 +764,11 @@ function TemplatesView({ session }: { session: any }) {
               
               {/* Board Settings Menu */}
               {showBoardSettings === board.id && (
+                <>
+                <div 
+                  className="fixed inset-0 z-10"
+                  onClick={() => setShowBoardSettings(null)}
+                />
                 <div 
                   className="absolute top-10 right-2 bg-white rounded-lg shadow-xl border border-gray-200 p-4 z-20 w-72"
                   onClick={(e) => e.stopPropagation()}
@@ -891,6 +930,7 @@ function TemplatesView({ session }: { session: any }) {
                     </div>
                   </div>
                 </div>
+                </>
               )}
             </div>
           )
@@ -940,34 +980,45 @@ function MembersView({ session }: { session: any }) {
   // Use hardcoded organization ID since session doesn't have org info
   const organizationId = 'spektif'
 
+  // Load members function - ONLY employees, NOT clients
+  const loadMembers = async () => {
+    try {
+      setIsLoading(true)
+      
+      // Clear any cached employees data
+      cache.delete(cacheKeys.employees(organizationId))
+      
+      const allUsers = await apiClient.getEmployees(organizationId) as Member[]
+      
+      // STRICT FILTER: Only show employees, accountants, admins - NO CLIENTS
+      const employees = (allUsers || []).filter((user: any) => {
+        const role = String(user.role || '').toUpperCase().trim()
+        // EXCLUDE clients completely
+        if (role === 'CLIENT') {
+          return false
+        }
+        // Only include: EMPLOYEE, ACCOUNTANT, ADMIN
+        return role === 'EMPLOYEE' || role === 'ACCOUNTANT' || role === 'ADMIN'
+      })
+      
+      console.log('Loaded employees (filtered):', employees.length, 'from', allUsers.length, 'total users')
+      setMembers(employees)
+    } catch (error) {
+      console.error('Error fetching employees:', error)
+      toast.error('Çalışanlar yüklenirken hata oluştu')
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
   // Fetch employees on component mount
   useEffect(() => {
-    const fetchEmployees = async () => {
-      try {
-        setIsLoading(true)
-        const employees = await apiClient.getEmployees(organizationId) as Member[]
-        setMembers(employees)
-      } catch (error) {
-        console.error('Error fetching employees:', error)
-        toast.error('Çalışanlar yüklenirken hata oluştu')
-      } finally {
-        setIsLoading(false)
-      }
-    }
-
-    fetchEmployees()
+    loadMembers()
   }, [])
 
   const handleEmployeeCreated = async () => {
-    // Refetch the members list
-    try {
-      const employees = await apiClient.getEmployees(organizationId) as Member[]
-      setMembers(employees)
-      toast.success('Çalışan başarıyla oluşturuldu!')
-    } catch (error) {
-      console.error('Error refetching employees:', error)
-      toast.error('Çalışan listesi güncellenirken hata oluştu')
-    }
+    // Reload members to get fresh data from backend
+    await loadMembers()
   }
 
   const handleEditMember = (member: Member) => {
@@ -983,15 +1034,17 @@ function MembersView({ session }: { session: any }) {
 
   const handleSaveEdit = async (memberId: string) => {
     try {
-      // API call to update member
-      await apiClient.updateEmployee(organizationId, memberId, editForm)
+      // Only send password if it's provided (not empty)
+      const updateData = { ...editForm }
+      if (!updateData.password || updateData.password.trim() === '') {
+        delete updateData.password
+      }
       
-      // Update local state
-      setMembers(members.map(member => 
-        member.id === memberId 
-          ? { ...member, ...editForm }
-          : member
-      ))
+      // API call to update member
+      await apiClient.updateEmployee(organizationId, memberId, updateData)
+      
+      // Reload members to get fresh data from backend
+      await loadMembers()
       
       setEditingMember(null)
       setEditForm({})
@@ -1008,15 +1061,19 @@ function MembersView({ session }: { session: any }) {
   }
 
   const handleDeleteMember = async (memberId: string) => {
-    if (!confirm('Bu üyeyi silmek istediğinizden emin misiniz?')) return
+    if (!confirm('Bu çalışanı silmek istediğinizden emin misiniz?')) return
     
     try {
-      await apiClient.deleteEmployee(organizationId, memberId)
-      setMembers(members.filter(member => member.id !== memberId))
-      toast.success('Üye silindi!')
-    } catch (error) {
-      console.error('Error deleting member:', error)
-      toast.error('Üye silinirken hata oluştu')
+      console.log('Deleting employee:', { organizationId, memberId })
+      const result = await apiClient.deleteEmployee(organizationId, memberId)
+      console.log('Delete employee result:', result)
+      // Reload members to get fresh data from backend
+      await loadMembers()
+      toast.success('Çalışan silindi!')
+    } catch (error: any) {
+      console.error('Error deleting employee:', error)
+      const errorMessage = error?.message || error?.response?.data?.error || 'Çalışan silinirken hata oluştu'
+      toast.error(errorMessage)
     }
   }
 
@@ -1024,9 +1081,9 @@ function MembersView({ session }: { session: any }) {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-lg font-medium">Takım Üyeleri</h3>
+          <h3 className="text-lg font-medium">Çalışanlar</h3>
           <p className="text-sm text-muted-foreground">
-            Workspace'inizdeki tüm üyeleri görüntüleyin ve yönetin
+            Çalışanlarınızı ve rollerini yönetin
           </p>
         </div>
         <Button onClick={() => setIsCreateModalOpen(true)}>
@@ -1184,8 +1241,22 @@ function MembersView({ session }: { session: any }) {
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-muted-foreground">Katılım:</span>
                     <span className="text-sm">
-                      {new Date(member.joinDate).toLocaleDateString('tr-TR')}
+                      {member.joinDate ? new Date(member.joinDate).toLocaleDateString('tr-TR') : 'Belirtilmemiş'}
                     </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-muted-foreground">Şifre:</span>
+                    {editingMember === member.id ? (
+                      <Input
+                        type="password"
+                        value={editForm.password || ''}
+                        onChange={(e) => setEditForm({...editForm, password: e.target.value})}
+                        placeholder="Yeni şifre (boş bırakılırsa değişmez)"
+                        className="h-6 text-xs w-40"
+                      />
+                    ) : (
+                      <span className="text-sm text-muted-foreground">••••••••</span>
+                    )}
                   </div>
                 </div>
               </CardContent>
@@ -1210,7 +1281,7 @@ function MembersView({ session }: { session: any }) {
 function ClientsView({ session }: { session: any }) {
   const [clients, setClients] = useState<any[]>([])
   const [isLoading, setIsLoading] = useState(true)
-  const [isCreating, setIsCreating] = useState(false)
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
   const [editingClient, setEditingClient] = useState<string | null>(null)
   const [editForm, setEditForm] = useState<Partial<any>>({})
   const organizationId = 'spektif' // Same as employees section
@@ -1232,25 +1303,8 @@ function ClientsView({ session }: { session: any }) {
     }
   }
 
-  const handleCreateClient = async () => {
-    try {
-      setIsCreating(true)
-      await apiClient.createClient(organizationId, {
-        name: "Yeni Müşteri",
-        email: "musteri@example.com",
-        phone: "+90 555 123 4567",
-        company: "Şirket Adı",
-        address: "Adres bilgisi",
-        notes: "Müşteri notları"
-      })
-      toast.success('Yeni müşteri oluşturuldu!')
-      loadClients() // Reload the list
-    } catch (error) {
-      console.error('Error creating client:', error)
-      toast.error('Müşteri oluşturulamadı!')
-    } finally {
-      setIsCreating(false)
-    }
+  const handleClientCreated = () => {
+    loadClients()
   }
 
   const handleEditClient = (client: any) => {
@@ -1267,13 +1321,16 @@ function ClientsView({ session }: { session: any }) {
 
   const handleSaveClientEdit = async (clientId: string) => {
     try {
-      await apiClient.updateClient(organizationId, clientId, editForm)
+      // Only send password if it's provided (not empty)
+      const updateData = { ...editForm }
+      if (!updateData.password || updateData.password.trim() === '') {
+        delete updateData.password
+      }
       
-      setClients(clients.map(client => 
-        client.id === clientId 
-          ? { ...client, ...editForm }
-          : client
-      ))
+      await apiClient.updateClient(organizationId, clientId, updateData)
+      
+      // Reload clients to get fresh data from backend
+      await loadClients()
       
       setEditingClient(null)
       setEditForm({})
@@ -1293,12 +1350,21 @@ function ClientsView({ session }: { session: any }) {
     if (!confirm('Bu müşteriyi silmek istediğinizden emin misiniz?')) return
     
     try {
-      await apiClient.deleteClient(organizationId, clientId)
-      setClients(clients.filter(client => client.id !== clientId))
+      console.log('Deleting client:', { organizationId, clientId })
+      const result = await apiClient.deleteClient(organizationId, clientId)
+      console.log('Delete client result:', result)
+      // Reload clients to get fresh data from backend
+      await loadClients()
       toast.success('Müşteri silindi!')
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error deleting client:', error)
-      toast.error('Müşteri silinirken hata oluştu')
+      const errorMessage = error?.message || error?.response?.data?.error || 'Müşteri silinirken hata oluştu'
+      console.error('Full error details:', {
+        message: error?.message,
+        response: error?.response,
+        stack: error?.stack
+      })
+      toast.error(errorMessage)
     }
   }
 
@@ -1322,9 +1388,9 @@ function ClientsView({ session }: { session: any }) {
             Müşteri bilgilerini ve projelerini yönetin
           </p>
         </div>
-        <Button onClick={handleCreateClient} disabled={isCreating}>
+        <Button onClick={() => setIsCreateModalOpen(true)}>
           <Building2 className="w-4 h-4 mr-2" />
-          {isCreating ? 'Oluşturuluyor...' : 'Yeni Müşteri'}
+          Yeni Müşteri
         </Button>
       </div>
 
@@ -1333,9 +1399,9 @@ function ClientsView({ session }: { session: any }) {
           <Building2 className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
           <h3 className="text-lg font-semibold mb-2">Henüz müşteri yok</h3>
           <p className="text-muted-foreground mb-4">İlk müşterinizi ekleyerek başlayın</p>
-          <Button onClick={handleCreateClient} disabled={isCreating}>
+          <Button onClick={() => setIsCreateModalOpen(true)}>
             <Building2 className="w-4 h-4 mr-2" />
-            {isCreating ? 'Oluşturuluyor...' : 'İlk Müşteri Ekle'}
+            İlk Müşteri Ekle
           </Button>
         </div>
       ) : (
@@ -1468,11 +1534,35 @@ function ClientsView({ session }: { session: any }) {
                     <span className="text-sm text-muted-foreground">Projeler:</span>
                     <span className="text-sm font-medium">{client.projects}</span>
                   </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-muted-foreground">Şifre:</span>
+                    {editingClient === client.id ? (
+                      <Input
+                        type="password"
+                        value={editForm.password || ''}
+                        onChange={(e) => setEditForm({...editForm, password: e.target.value})}
+                        placeholder="Yeni şifre (boş bırakılırsa değişmez)"
+                        className="h-6 text-xs w-40"
+                      />
+                    ) : (
+                      <span className="text-sm text-muted-foreground">••••••••</span>
+                    )}
+                  </div>
                 </div>
               </CardContent>
             </Card>
           ))}
         </div>
+      )}
+
+      {/* Create Client Modal */}
+      {organizationId && (
+        <CreateClientModal
+          isOpen={isCreateModalOpen}
+          onClose={() => setIsCreateModalOpen(false)}
+          onClientCreated={handleClientCreated}
+          organizationId={organizationId}
+        />
       )}
     </div>
   )

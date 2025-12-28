@@ -3,6 +3,7 @@
 import { usePathname } from 'next/navigation'
 import Link from 'next/link'
 import { useParams } from 'next/navigation'
+import { useSession } from 'next-auth/react'
 import { Calendar, MessageSquare, Inbox, BarChart3, Kanban, Home } from 'lucide-react'
 import { BoardBackgroundProvider, useBoardBackgroundContext } from '@/contexts/board-background-context'
 
@@ -12,8 +13,12 @@ const defaultBackgroundImage = 'https://images.unsplash.com/photo-1506905925346-
 function BoardLayoutContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const params = useParams()
+  const { data: session } = useSession()
   const { orgId, boardId } = params
   const { background } = useBoardBackgroundContext()
+  
+  const userRole = (session?.user as any)?.role || 'ADMIN'
+  const isAdminOrClient = userRole === 'ADMIN' || userRole === 'CLIENT'
   
   const basePath = `/tr/org/${orgId}/board/${boardId}`
   
@@ -48,12 +53,13 @@ function BoardLayoutContent({ children }: { children: React.ReactNode }) {
       icon: Inbox,
       current: pathname === `${basePath}/inbox`,
     },
-    {
+    // Only show Muhasebe for admin and client
+    ...(isAdminOrClient ? [{
       name: 'Muhasebe',
       href: `${basePath}/accounting`,
       icon: BarChart3,
       current: pathname === `${basePath}/accounting`,
-    },
+    }] : []),
   ]
 
   const backgroundStyle = background || defaultBackgroundImage

@@ -29,19 +29,47 @@ class ApiClient {
     const headers = await this.getAuthHeaders()
     const apiUrl = getApiUrl()
     
-    const response = await fetch(`${apiUrl}${endpoint}`, {
-      ...options,
-      headers: {
-        ...headers,
-        ...options.headers,
-      },
-    })
+    try {
+      console.log(`[API] ${options.method || 'GET'} ${apiUrl}${endpoint}`, options.body ? JSON.parse(options.body as string) : '')
+      
+      const response = await fetch(`${apiUrl}${endpoint}`, {
+        ...options,
+        headers: {
+          ...headers,
+          ...options.headers,
+        },
+      })
 
-    if (!response.ok) {
-      throw new Error(`API Error: ${response.status} ${response.statusText}`)
+      console.log(`[API] Response status: ${response.status} ${response.statusText}`)
+
+      if (!response.ok) {
+        const errorText = await response.text()
+        let errorData
+        try {
+          errorData = JSON.parse(errorText)
+        } catch {
+          errorData = { error: errorText }
+        }
+        console.error(`[API] Error response:`, errorData)
+        const error = new Error(errorData.error || `API Error: ${response.status} ${response.statusText}`)
+        ;(error as any).response = { data: errorData, status: response.status }
+        throw error
+      }
+
+      const data = await response.json()
+      console.log(`[API] Success response:`, data)
+      return data
+    } catch (error: any) {
+      // If it's already our custom error, re-throw it
+      if (error.response) {
+        throw error
+      }
+      // Network errors
+      console.error('[API] Network error:', error)
+      const networkError = new Error(error.message || 'Network error occurred. Check if Firebase emulators are running.')
+      ;(networkError as any).isNetworkError = true
+      throw networkError
     }
-
-    return response.json()
   }
 
   // Authentication
@@ -113,6 +141,7 @@ class ApiClient {
     address: string
     notes: string
     status: string
+    password?: string
   }>) {
     return this.request('/updateClient', {
       method: 'POST',
@@ -140,6 +169,7 @@ class ApiClient {
     email: string
     position: string
     role: string
+    password?: string
   }>) {
     return this.request('/updateEmployee', {
       method: 'POST',
@@ -162,7 +192,7 @@ class ApiClient {
   }
 
   // Boards
-  async getBoards(userId: string) {
+  async getBoards(userId: string, role?: string, clientId?: string) {
     const cacheKey = cacheKeys.boards(userId)
     const cached = cache.get(cacheKey)
     if (cached) {
@@ -170,7 +200,12 @@ class ApiClient {
       return cached
     }
 
-    const data = await this.request(`/getBoards?userId=${userId}`)
+    // Build query params
+    const params = new URLSearchParams({ userId })
+    if (role) params.append('role', role)
+    if (clientId) params.append('clientId', clientId)
+
+    const data = await this.request(`/getBoards?${params.toString()}`)
     cache.set(cacheKey, data, cacheTTL.medium)
     return data
   }
@@ -214,8 +249,12 @@ class ApiClient {
       body: JSON.stringify(data),
     })
     
-    // Invalidate boards cache
-    cache.invalidatePattern(`boards_${data.organizationId}`)
+    // Invalidate boards cache for the user who created the board
+    if (data.userId) {
+      cache.delete(cacheKeys.boards(data.userId))
+    }
+    // Also invalidate all boards cache patterns to be safe
+    cache.invalidatePattern('^boards_')
     return result
   }
 
@@ -223,14 +262,21 @@ class ApiClient {
     title: string
     description: string
     color: string
+    members: string[]
+    pinned: boolean
+    deleted: boolean
   }>) {
-    return this.request('/updateBoard', {
+    const result = await this.request('/updateBoard', {
       method: 'POST',
       body: JSON.stringify({
         id: boardId,
         ...data
       }),
     })
+    
+    // Invalidate boards cache after update
+    cache.invalidatePattern('boards_')
+    return result
   }
 
   async deleteBoard(boardId: string) {
@@ -249,13 +295,17 @@ class ApiClient {
   }
 
   async pinBoard(boardId: string, pinned: boolean) {
-    return this.request('/updateBoard', {
+    const result = await this.request('/updateBoard', {
       method: 'POST',
       body: JSON.stringify({
         id: boardId,
         pinned: pinned
       }),
     })
+    
+    // Invalidate boards cache
+    cache.invalidatePattern('^boards_')
+    return result
   }
 
   // Lists
@@ -373,10 +423,14 @@ class ApiClient {
   }
 
   async updateBoardBackground(boardId: string, backgroundUrl: string) {
-    return this.request('/updateBoardBackground', {
+    const result = await this.request('/updateBoardBackground', {
       method: 'POST',
       body: JSON.stringify({ boardId, backgroundUrl }),
     })
+    
+    // Invalidate boards cache to reflect background changes
+    cache.invalidatePattern('^boards_')
+    return result
   }
 
   async getCalendarEvents(boardId: string, startDate?: string, endDate?: string) {

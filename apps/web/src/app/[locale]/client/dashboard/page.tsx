@@ -20,14 +20,17 @@ import {
   Folder
 } from 'lucide-react'
 import { signOut } from 'next-auth/react'
+import { apiClient } from '@/lib/api'
+import { toast } from 'sonner'
 
 interface Project {
   id: string
   name: string
-  description: string
-  color: string
+  description?: string
+  color?: string
   status: 'active' | 'completed' | 'on_hold'
   progress: number
+  dueDate: string
   tasksCompleted: number
   totalTasks: number
 }
@@ -54,57 +57,45 @@ export default function ClientDashboardPage() {
   }, [status, router])
 
   useEffect(() => {
-    // Load client's projects
+    // Load client's projects and invoices
     const loadData = async () => {
       try {
         const user = session?.user as any
-        if (!user?.id) return
-
-        // Fetch boards assigned to this client
-        const apiUrl = process.env.NODE_ENV === 'development'
-          ? 'http://localhost:5001/spektif-agency-final-prod/europe-west4'
-          : (process.env.NEXT_PUBLIC_FIREBASE_FUNCTIONS_URL || '')
-        
-        const response = await fetch(
-          `${apiUrl}/getBoards?userId=${user.id}&role=client&clientId=${user.id}`,
-          {
-            headers: {
-              'Authorization': `Bearer ${user.backendToken}`,
-              'Content-Type': 'application/json',
-            },
-          }
-        )
-
-        if (response.ok) {
-          const boardsData = await response.json()
-          
-          // Convert boards to projects with progress calculation
-          const projectsData: Project[] = boardsData.map((board: any) => {
-            const totalTasks = board.lists?.reduce((sum: number, list: any) => 
-              sum + (list.cards?.length || 0), 0) || 0
-            const completedTasks = board.lists?.reduce((sum: number, list: any) => {
-              if (list.title.toLowerCase().includes('tamamlan') || list.title.toLowerCase().includes('done')) {
-                return sum + (list.cards?.length || 0)
-              }
-              return sum
-            }, 0) || 0
-            
-            const progress = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0
-            
-            return {
-              id: board.id,
-              name: board.title,
-              description: board.description || '',
-              color: board.color || '#8B5CF6',
-              status: progress === 100 ? 'completed' : 'active',
-              progress,
-              tasksCompleted: completedTasks,
-              totalTasks
-            }
-          })
-          
-          setProjects(projectsData)
+        if (!user?.id) {
+          setLoading(false)
+          return
         }
+
+        // Fetch boards assigned to this client (these are the projects)
+        const boardsData = await apiClient.getBoards(user.id, 'client', user.id) as any[]
+        
+        // Convert boards to projects with progress calculation
+        const projectsData: Project[] = boardsData.map((board: any) => {
+          const totalTasks = board.lists?.reduce((sum: number, list: any) => 
+            sum + (list.cards?.length || 0), 0) || 0
+          const completedTasks = board.lists?.reduce((sum: number, list: any) => {
+            if (list.title.toLowerCase().includes('tamamlan') || list.title.toLowerCase().includes('done')) {
+              return sum + (list.cards?.length || 0)
+            }
+            return sum
+          }, 0) || 0
+          
+          const progress = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0
+          
+          return {
+            id: board.id,
+            name: board.title,
+            description: board.description || '',
+            color: board.color || '#8B5CF6',
+            status: progress === 100 ? 'completed' : 'active',
+            progress,
+            dueDate: board.lists?.[0]?.cards?.[0]?.dueDate || new Date().toISOString(),
+            tasksCompleted: completedTasks,
+            totalTasks
+          }
+        })
+        
+        setProjects(projectsData)
 
         // Mock invoices for now (would come from accounting system)
         setInvoices([
@@ -125,6 +116,7 @@ export default function ClientDashboardPage() {
         ])
       } catch (error) {
         console.error('Error loading data:', error)
+        toast.error('Veriler yuklenirken hata olustu')
       } finally {
         setLoading(false)
       }
@@ -132,6 +124,10 @@ export default function ClientDashboardPage() {
 
     if (session) {
       loadData()
+      
+      // Set up polling for real-time updates every 10 seconds
+      const interval = setInterval(loadData, 10000)
+      return () => clearInterval(interval)
     }
   }, [session])
 
@@ -163,7 +159,7 @@ export default function ClientDashboardPage() {
             </div>
             <div>
               <h1 className="text-xl font-bold text-white">
-                {user?.name || user?.company}
+                Merhaba, {user?.name || user?.company}
               </h1>
               <p className="text-sm text-purple-300">Musteri Paneli</p>
             </div>
@@ -266,13 +262,19 @@ export default function ClientDashboardPage() {
                              project.status === 'active' ? 'Aktif' : 'Beklemede'}
                           </Badge>
                         </div>
-                        <p className="text-sm text-purple-300 mb-2">{project.description}</p>
+                        {project.description && (
+                          <p className="text-sm text-purple-300 mb-2">{project.description}</p>
+                        )}
                         <div className="mb-2">
                           <div className="flex items-center justify-between text-sm text-purple-300 mb-1">
                             <span>{project.tasksCompleted}/{project.totalTasks} gorev</span>
                             <span>%{project.progress}</span>
                           </div>
                           <Progress value={project.progress} className="h-2" />
+                        </div>
+                        <div className="flex items-center text-sm text-purple-300">
+                          <Calendar className="w-4 h-4 mr-1" />
+                          Teslim: {new Date(project.dueDate).toLocaleDateString('tr-TR')}
                         </div>
                       </div>
                     </Link>
@@ -287,38 +289,42 @@ export default function ClientDashboardPage() {
             <CardHeader>
               <CardTitle className="text-white flex items-center">
                 <FileText className="w-5 h-5 mr-2" />
-                Faturalarim
+                Faturalarim ({invoices.length})
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                {invoices.map((invoice) => (
-                  <div 
-                    key={invoice.id}
-                    className="flex items-center justify-between p-4 bg-purple-700/50 rounded-lg"
-                  >
-                    <div>
-                      <p className="text-white font-medium">{invoice.number}</p>
-                      <p className="text-sm text-purple-300">
-                        Son Odeme: {new Date(invoice.dueDate).toLocaleDateString('tr-TR')}
-                      </p>
+              {invoices.length === 0 ? (
+                <p className="text-purple-300 text-center py-4">Henuz fatura yok</p>
+              ) : (
+                <div className="space-y-4">
+                  {invoices.map((invoice) => (
+                    <div 
+                      key={invoice.id}
+                      className="flex items-center justify-between p-4 bg-purple-700/50 rounded-lg"
+                    >
+                      <div>
+                        <p className="text-white font-medium">{invoice.number}</p>
+                        <p className="text-sm text-purple-300">
+                          Son Odeme: {new Date(invoice.dueDate).toLocaleDateString('tr-TR')}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-white font-bold">
+                          {invoice.amount.toLocaleString('tr-TR')} TL
+                        </p>
+                        <Badge className={
+                          invoice.status === 'paid' ? 'bg-green-500/20 text-green-400' :
+                          invoice.status === 'pending' ? 'bg-yellow-500/20 text-yellow-400' : 
+                          'bg-red-500/20 text-red-400'
+                        }>
+                          {invoice.status === 'paid' ? 'Odendi' :
+                           invoice.status === 'pending' ? 'Bekliyor' : 'Gecikti'}
+                        </Badge>
+                      </div>
                     </div>
-                    <div className="text-right">
-                      <p className="text-white font-bold">
-                        {invoice.amount.toLocaleString('tr-TR')} TL
-                      </p>
-                      <Badge className={
-                        invoice.status === 'paid' ? 'bg-green-500/20 text-green-400' :
-                        invoice.status === 'pending' ? 'bg-yellow-500/20 text-yellow-400' : 
-                        'bg-red-500/20 text-red-400'
-                      }>
-                        {invoice.status === 'paid' ? 'Odendi' :
-                         invoice.status === 'pending' ? 'Bekliyor' : 'Gecikti'}
-                      </Badge>
-                    </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>
@@ -338,4 +344,3 @@ export default function ClientDashboardPage() {
     </div>
   )
 }
-

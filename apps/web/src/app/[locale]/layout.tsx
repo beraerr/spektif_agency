@@ -8,6 +8,7 @@ import { ThemeProvider } from '@/components/providers/theme-provider'
 import { NextAuthProvider } from '@/components/providers/session-provider'
 import { locales } from '@/i18n'
 import { Toaster } from 'sonner'
+import { ApiLogger } from '@/components/dev/api-logger'
 // Debug info component removed for cleaner UI
 // import { DebugInfo } from '@/components/debug-info'
 
@@ -51,6 +52,7 @@ export default async function LocaleLayout({
               <div className="min-h-screen bg-background text-foreground">
                 {children}
                 <Toaster richColors />
+                {process.env.NODE_ENV === 'development' && <ApiLogger />}
               </div>
             </NextIntlClientProvider>
           </NextAuthProvider>

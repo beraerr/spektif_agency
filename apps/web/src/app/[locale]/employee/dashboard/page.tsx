@@ -19,7 +19,7 @@ import {
 } from 'lucide-react'
 import { signOut } from 'next-auth/react'
 import { apiClient } from '@/lib/api'
-import { apiClient } from '@/lib/api'
+import { toast } from 'sonner'
 
 interface Board {
   id: string
@@ -48,15 +48,43 @@ export default function EmployeeDashboardPage() {
   useEffect(() => {
     if (status === 'unauthenticated') {
       router.push('/tr/auth/login')
+      return
     }
   }, [status, router])
+  
+  // Show loading while session is loading
+  if (status === 'loading') {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 to-slate-800">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-green-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-white">Yukleniyor...</p>
+        </div>
+      </div>
+    )
+  }
+  
+  // Show loading if no session
+  if (!session) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 to-slate-800">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-green-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-white">Session yukleniyor...</p>
+        </div>
+      </div>
+    )
+  }
 
   useEffect(() => {
     // Load employee's boards and tasks
     const loadData = async () => {
       try {
         const user = session?.user as any
-        if (!user?.id) return
+        if (!user?.id) {
+          setLoading(false)
+          return
+        }
 
         // Fetch boards assigned to this employee using apiClient
         const boardsData = await apiClient.getBoards(user.id, 'employee') as any[]
@@ -64,10 +92,18 @@ export default function EmployeeDashboardPage() {
 
         // Extract tasks from all boards
         const allTasks: Task[] = []
-        boardsData.forEach((board: any) => {
+        boardsData?.forEach((board: any) => {
           board.lists?.forEach((list: any) => {
             list.cards?.forEach((card: any) => {
-              if (card.members?.includes(user.name) || card.members?.includes(`${user.name} ${user.surname}`)) {
+              const memberName = typeof card.members?.[0] === 'string' 
+                ? card.members[0] 
+                : card.members?.[0]?.name || ''
+              const userFullName = `${user.name} ${user.surname || ''}`.trim()
+              
+              if (card.members?.includes(user.name) || 
+                  card.members?.includes(userFullName) ||
+                  memberName === user.name ||
+                  memberName === userFullName) {
                 allTasks.push({
                   id: card.id,
                   title: card.title,
@@ -84,6 +120,7 @@ export default function EmployeeDashboardPage() {
         setTasks(allTasks)
       } catch (error) {
         console.error('Error loading data:', error)
+        toast.error('Veriler yuklenirken hata olustu')
       } finally {
         setLoading(false)
       }
@@ -91,6 +128,12 @@ export default function EmployeeDashboardPage() {
 
     if (session) {
       loadData()
+      
+      // Set up polling for real-time updates every 10 seconds
+      const interval = setInterval(loadData, 10000)
+      return () => clearInterval(interval)
+    } else {
+      setLoading(false)
     }
   }, [session])
 
@@ -177,17 +220,17 @@ export default function EmployeeDashboardPage() {
           </Card>
         </div>
 
-        {/* Assigned Boards */}
+        {/* Assigned Templates (Sablonlar) */}
         <Card className="bg-slate-800/50 border-slate-700 mb-8">
           <CardHeader>
             <CardTitle className="text-white flex items-center">
               <Folder className="w-5 h-5 mr-2" />
-              Atanan Projeler ({boards.length})
+              Atanan Sablonlar ({boards.length})
             </CardTitle>
           </CardHeader>
           <CardContent>
             {boards.length === 0 ? (
-              <p className="text-slate-400 text-center py-4">Henuz atanan proje yok</p>
+              <p className="text-slate-400 text-center py-4">Henuz atanan sablon yok</p>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {boards.map((board) => (
@@ -196,14 +239,19 @@ export default function EmployeeDashboardPage() {
                     href={`/tr/org/spektif/board/${board.id}`}
                   >
                     <div 
-                      className="p-4 rounded-lg cursor-pointer hover:opacity-80 transition-opacity"
+                      className="p-4 rounded-lg cursor-pointer hover:opacity-80 transition-opacity border border-slate-600"
                       style={{ backgroundColor: board.color || '#3B82F6' }}
                     >
                       <h3 className="text-white font-bold">{board.title}</h3>
-                      <p className="text-white/70 text-sm">{board.description}</p>
-                      <p className="text-white/50 text-xs mt-2">
-                        {board.lists?.length || 0} liste
-                      </p>
+                      <p className="text-white/70 text-sm">{board.description || 'Aciklama yok'}</p>
+                      <div className="flex items-center justify-between mt-2">
+                        <p className="text-white/50 text-xs">
+                          {board.lists?.length || 0} liste
+                        </p>
+                        <p className="text-white/50 text-xs">
+                          {board.lists?.reduce((acc: number, list: any) => acc + (list.cards?.length || 0), 0) || 0} kart
+                        </p>
+                      </div>
                     </div>
                   </Link>
                 ))}

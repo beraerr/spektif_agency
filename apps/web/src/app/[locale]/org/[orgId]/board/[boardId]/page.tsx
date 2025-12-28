@@ -9,12 +9,9 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import {
   ArrowLeft,
   Plus,
-  MoreHorizontal,
   Star,
   Users,
   Settings,
-  Filter,
-  Share,
   Loader2
 } from 'lucide-react'
 import { DragDropBoard } from '@/components/board/drag-drop-board'
@@ -25,6 +22,14 @@ import { toast } from 'sonner'
 import { CardModal } from '@/components/board/card-modal'
 import { ThemeSwitcher } from '@/components/theme-switcher'
 import { LanguageSwitcher } from '@/components/language-switcher'
+import { apiClient } from '@/lib/api'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import { X } from 'lucide-react'
 
 export default function BoardPage() {
   const params = useParams()
@@ -59,7 +64,85 @@ export default function BoardPage() {
 
   const [selectedCard, setSelectedCard] = useState<CardData | null>(null)
   const [isCardModalOpen, setIsCardModalOpen] = useState(false)
+  const [availableMembers, setAvailableMembers] = useState<any[]>([])
+  const [showMemberDropdown, setShowMemberDropdown] = useState(false)
   // Background is handled by the layout
+
+  // Load available members (employees + clients)
+  useEffect(() => {
+    const loadMembers = async () => {
+      try {
+        const [employees, clients] = await Promise.all([
+          apiClient.getEmployees(orgId) as Promise<any[]>,
+          apiClient.getClients(orgId) as Promise<any[]>
+        ])
+        
+        const allMembers = [
+          ...(employees || []).map(emp => ({
+            id: emp.id,
+            name: `${emp.name} ${emp.surname || ''}`.trim(),
+            email: emp.email,
+            type: 'employee',
+            role: emp.role
+          })),
+          ...(clients || []).map(client => ({
+            id: client.id,
+            name: client.name || client.company,
+            email: client.email,
+            type: 'client',
+            role: 'client'
+          }))
+        ]
+        
+        setAvailableMembers(allMembers)
+      } catch (error) {
+        console.error('Error loading members:', error)
+      }
+    }
+    
+    loadMembers()
+  }, [orgId])
+
+  // Handle member addition/removal
+  const handleAddMember = async (memberId: string) => {
+    try {
+      const currentMembers = board?.members || []
+      if (currentMembers.includes(memberId)) {
+        toast.error('Bu uye zaten board\'a ekli')
+        return
+      }
+      
+      await apiClient.updateBoard(boardId, {
+        members: [...currentMembers, memberId]
+      })
+      
+      // Refresh board to get updated members
+      fetchBoard()
+      toast.success('Uye board\'a eklendi!')
+      setShowMemberDropdown(false)
+    } catch (error) {
+      console.error('Error adding member:', error)
+      toast.error('Uye eklenirken hata olustu')
+    }
+  }
+
+  const handleRemoveMember = async (memberId: string) => {
+    try {
+      const currentMembers = board?.members || []
+      const newMembers = currentMembers.filter((id: string) => id !== memberId)
+      
+      await apiClient.updateBoard(boardId, {
+        members: newMembers
+      })
+      
+      // Refresh board to get updated members
+      fetchBoard()
+      toast.success('Uye board\'dan cikarildi!')
+    } catch (error) {
+      console.error('Error removing member:', error)
+      toast.error('Uye cikarilirken hata olustu')
+    }
+  }
 
   // Polling for updates
   useEffect(() => {
@@ -147,6 +230,9 @@ export default function BoardPage() {
 
   const handleCardUpdate = async (updatedCard: CardData) => {
     try {
+      // Update local state immediately for real-time UI
+      setSelectedCard(updatedCard)
+      
       // Update card in database (all fields including members and attachments)
       // This also updates the board state automatically
       await updateCard(updatedCard.id, {
@@ -169,6 +255,8 @@ export default function BoardPage() {
         }
       })
       
+      // Refresh board to update all card displays
+      await fetchBoard()
       toast.success('Card updated successfully!')
     } catch (error) {
       console.error('Failed to update card:', error)
@@ -253,13 +341,6 @@ export default function BoardPage() {
       <header className="relative z-10 bg-black/10 dark:bg-black/30 backdrop-blur-sm border-b border-white/10 dark:border-white/20">
         <div className="flex items-center justify-between px-6 py-3">
           <div className="flex items-center space-x-4">
-            <Link href={`/${locale}/dashboard`}>
-              <Button variant="ghost" size="sm" className="text-white hover:bg-white/10 border-0">
-                <ArrowLeft className="w-4 h-4 mr-2" />
-                Boards
-              </Button>
-            </Link>
-
             <div className="flex items-center space-x-3">
               <h1 className="text-lg font-semibold text-white">{board.title || 'Board'}</h1>
               <Button variant="ghost" size="sm" className="text-white/80 hover:bg-white/10 w-8 h-8 p-0">
@@ -269,36 +350,69 @@ export default function BoardPage() {
           </div>
 
           <div className="flex items-center space-x-3">
-            <Button variant="ghost" size="sm" className="text-white/90 hover:bg-white/10 border border-white/20">
-              <Filter className="w-4 h-4 mr-2" />
-              Filter
-            </Button>
-
             <div className="flex items-center space-x-1">
-              <Avatar className="w-8 h-8 border-2 border-white/30">
-                <AvatarFallback className="bg-blue-500 text-white text-xs font-medium">A</AvatarFallback>
-              </Avatar>
-              <Avatar className="w-8 h-8 border-2 border-white/30">
-                <AvatarFallback className="bg-green-500 text-white text-xs font-medium">E</AvatarFallback>
-              </Avatar>
-              <Avatar className="w-8 h-8 border-2 border-white/30">
-                <AvatarFallback className="bg-orange-500 text-white text-xs font-medium">M</AvatarFallback>
-              </Avatar>
-              <Button variant="ghost" size="sm" className="text-white/90 hover:bg-white/10 border border-white/20 w-8 h-8 p-0">
-                <Plus className="w-4 h-4" />
-              </Button>
+              {board?.members?.slice(0, 3).map((memberId: string) => {
+                const member = availableMembers.find(m => m.id === memberId)
+                if (!member) return null
+                const initials = member.name.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2)
+                return (
+                  <Avatar 
+                    key={memberId} 
+                    className="w-8 h-8 border-2 border-white/30 cursor-pointer hover:scale-110 transition-transform"
+                    onClick={() => handleRemoveMember(memberId)}
+                    title={`${member.name} - Kaldirmak icin tikla`}
+                  >
+                    <AvatarFallback className={`${member.type === 'employee' ? 'bg-blue-500' : 'bg-purple-500'} text-white text-xs font-medium`}>
+                      {initials}
+                    </AvatarFallback>
+                  </Avatar>
+                )
+              })}
+              {board?.members && board.members.length > 3 && (
+                <Avatar className="w-8 h-8 border-2 border-white/30">
+                  <AvatarFallback className="bg-gray-500 text-white text-xs font-medium">
+                    +{board.members.length - 3}
+                  </AvatarFallback>
+                </Avatar>
+              )}
+              <DropdownMenu open={showMemberDropdown} onOpenChange={setShowMemberDropdown}>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="sm" className="text-white/90 hover:bg-white/10 border border-white/20 w-8 h-8 p-0">
+                    <Plus className="w-4 h-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56 bg-white dark:bg-gray-800">
+                  {availableMembers
+                    .filter(m => !board?.members?.includes(m.id))
+                    .map(member => (
+                      <DropdownMenuItem
+                        key={member.id}
+                        onClick={() => handleAddMember(member.id)}
+                        className="cursor-pointer"
+                      >
+                        <div className="flex items-center space-x-2">
+                          <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs ${
+                            member.type === 'employee' ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700'
+                          }`}>
+                            {member.name.charAt(0)}
+                          </div>
+                          <div>
+                            <p className="text-sm font-medium">{member.name}</p>
+                            <p className="text-xs text-gray-500">{member.type === 'employee' ? 'Calisan' : 'Musteri'}</p>
+                          </div>
+                        </div>
+                      </DropdownMenuItem>
+                    ))}
+                  {availableMembers.filter(m => !board?.members?.includes(m.id)).length === 0 && (
+                    <DropdownMenuItem disabled>
+                      <p className="text-sm text-gray-500">Tum uyeler eklendi</p>
+                    </DropdownMenuItem>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
 
-            <Button variant="ghost" size="sm" className="text-white/90 hover:bg-white/10 border border-white/20">
-              <Share className="w-4 h-4 mr-2" />
-              Share
-            </Button>
-
             <ThemeSwitcher />
-
-            <Button variant="ghost" size="sm" className="text-white/80 hover:bg-white/10 w-8 h-8 p-0">
-              <MoreHorizontal className="w-4 h-4" />
-            </Button>
           </div>
         </div>
       </header>

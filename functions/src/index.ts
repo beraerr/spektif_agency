@@ -32,7 +32,7 @@ setGlobalOptions({
   region: 'europe-west4'
 });
 
-// CORS middleware
+// CORS middleware - Use the cors package that was working before
 const cors = require('cors')({ origin: true });
 
 // ============================================================================
@@ -208,16 +208,38 @@ export const getBoards = onRequest(
 
       // Filter based on role
       if (role === 'client' && clientId) {
-        // Clients can only see boards assigned to them
-        boardsSnapshot = await db.collection('boards')
+        // Clients can see boards assigned to them via clientId OR boards where they are members
+        // Get boards where clientId matches
+        const clientIdBoardsSnapshot = await db.collection('boards')
           .where('clientId', '==', clientId)
-          .orderBy('createdAt', 'desc')
-          .limit(50)
           .get();
+        
+        // Get boards where client is a member
+        const memberBoardsSnapshot = await db.collection('boards')
+          .where('members', 'array-contains', clientId)
+          .get();
+        
+        // Combine and deduplicate
+        const allBoardDocs = new Map();
+        clientIdBoardsSnapshot.docs.forEach(doc => {
+          allBoardDocs.set(doc.id, doc);
+        });
+        memberBoardsSnapshot.docs.forEach(doc => {
+          allBoardDocs.set(doc.id, doc);
+        });
+        
+        // Convert to array and sort
+        boardsSnapshot = {
+          docs: Array.from(allBoardDocs.values()).sort((a, b) => {
+            const aTime = a.data()?.createdAt?.seconds || 0;
+            const bTime = b.data()?.createdAt?.seconds || 0;
+            return bTime - aTime;
+          }).slice(0, 50)
+        } as any;
       } else if (role === 'employee') {
         // Employees can see boards they are members of OR boards assigned via assignedBoards
         // Get user's assignedBoards first
-        const userDoc = await db.collection('users').doc(userId).get();
+        const userDoc = await db.collection('users').doc(userId as string).get();
         const userData = userDoc.data();
         const assignedBoardIds = userData?.assignedBoards || [];
         
@@ -730,11 +752,18 @@ export const uploadFile = onRequest(
         }
       });
 
-      // Get download URL
-      const [url] = await file.getSignedUrl({
-        action: 'read',
-        expires: '03-01-2500'
-      });
+      // Get download URL - use public URL for emulator, signed URL for production
+      let url: string;
+      if (process.env.FUNCTIONS_EMULATOR === 'true') {
+        // In emulator, use a direct storage URL
+        url = `http://localhost:9199/v0/b/${bucket.name}/o/${encodeURIComponent(filePath)}?alt=media`;
+      } else {
+        const [signedUrl] = await file.getSignedUrl({
+          action: 'read',
+          expires: '03-01-2500'
+        });
+        url = signedUrl;
+      }
 
       // Save file metadata to Firestore
       const fileDoc = await db.collection('files').add({
@@ -852,14 +881,37 @@ export const getEmployees = onRequest(
         return res.status(400).json({ error: 'Organization ID is required' });
       }
 
-      const employeesSnapshot = await db.collection('users')
+      // Get all users from organization
+      const usersSnapshot = await db.collection('users')
         .where('organizationId', '==', organizationId)
         .get();
 
-      const employees = employeesSnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
+      // STRICT FILTER: Only return employees, accountants, admins - ABSOLUTELY NO CLIENTS
+      const employees = usersSnapshot.docs
+        .map(doc => {
+          const data = doc.data();
+          return {
+            id: doc.id,
+            ...data
+          };
+        })
+        .filter((user: any) => {
+          const role = String(user.role || '').toLowerCase().trim();
+          // STRICTLY EXCLUDE clients
+          if (role === 'client') {
+            logger.info(`Filtered out client user: ${user.id} with role: ${role}`);
+            return false;
+          }
+          // Only include: employee, accountant, admin
+          const allowedRoles = ['employee', 'accountant', 'admin'];
+          const isAllowed = allowedRoles.includes(role);
+          if (!isAllowed) {
+            logger.info(`Filtered out user: ${user.id} with role: ${role} (not in allowed roles)`);
+          }
+          return isAllowed;
+        });
+      
+      logger.info(`getEmployees: Returning ${employees.length} employees (filtered from ${usersSnapshot.docs.length} total users)`);
 
       return res.json(employees);
     } catch (error) {
@@ -913,6 +965,81 @@ export const createEmployee = onRequest(
   });
 });
 
+export const updateEmployee = onRequest(
+  { 
+    cors: true,
+    invoker: "public"
+  },
+  async (req: Request, res: Response) => {
+  return cors(req, res, async () => {
+    try {
+      const { id, ...updateData } = req.body;
+      
+      if (!id) {
+        return res.status(400).json({ error: 'Employee ID is required' });
+      }
+
+      const employeeRef = db.collection('users').doc(id);
+      await employeeRef.update({
+        ...updateData,
+        updatedAt: new Date()
+      });
+
+      logger.info(`Employee ${id} updated successfully`);
+      return res.json({ success: true, message: 'Employee updated successfully' });
+    } catch (error) {
+      logger.error('Error updating employee:', error);
+      return res.status(500).json({ error: 'Failed to update employee' });
+    }
+  });
+});
+
+export const deleteEmployee = onRequest(
+  { 
+    cors: true,
+    invoker: "public"
+  },
+  async (req: Request, res: Response) => {
+  return cors(req, res, async () => {
+    try {
+      const { id, organizationId } = req.body;
+      
+      logger.info(`Delete employee request:`, { id, organizationId, method: req.method });
+      
+      if (!id) {
+        logger.warn('Employee ID is missing in delete request');
+        return res.status(400).json({ error: 'Employee ID is required' });
+      }
+
+      // Check if employee exists before deleting
+      const employeeRef = db.collection('users').doc(id);
+      const employeeDoc = await employeeRef.get();
+      
+      if (!employeeDoc.exists) {
+        logger.warn(`Employee ${id} not found in users collection`);
+        return res.status(404).json({ error: 'Employee not found' });
+      }
+
+      const employeeData = employeeDoc.data();
+      // Make sure we're not deleting a client
+      if (employeeData?.role?.toLowerCase() === 'client') {
+        logger.warn(`Attempted to delete client ${id} using deleteEmployee endpoint`);
+        return res.status(400).json({ error: 'Cannot delete client using deleteEmployee endpoint. Use deleteClient instead.' });
+      }
+
+      // Delete from users collection
+      await employeeRef.delete();
+
+      logger.info(`Employee ${id} deleted successfully`);
+      return res.status(200).json({ success: true, message: 'Employee deleted successfully' });
+    } catch (error: any) {
+      logger.error('Error deleting employee:', error);
+      const errorMessage = error?.message || 'Failed to delete employee';
+      return res.status(500).json({ error: errorMessage });
+    }
+  });
+});
+
 // ============================================================================
 // CLIENT MANAGEMENT
 // ============================================================================
@@ -928,8 +1055,7 @@ export const getClients = onRequest(
       const { organizationId } = req.query;
       
       if (!organizationId) {
-        res.status(400).json({ error: 'organizationId is required' });
-        return;
+        return res.status(400).json({ error: 'organizationId is required' });
       }
 
       const clientsSnapshot = await db.collection('clients')
@@ -941,10 +1067,10 @@ export const getClients = onRequest(
         .map(doc => ({ id: doc.id, ...doc.data() }))
         .filter((client: any) => !client.deleted);
 
-      res.json(clients);
+      return res.json(clients);
     } catch (error) {
       console.error('Error fetching clients:', error);
-      res.status(500).json({ error: 'Failed to fetch clients' });
+      return res.status(500).json({ error: 'Failed to fetch clients' });
     }
   });
 });
@@ -960,8 +1086,7 @@ export const createClient = onRequest(
       const { organizationId, name, email, phone, company, address, notes, password } = req.body;
       
       if (!organizationId || !name || !email) {
-        res.status(400).json({ error: 'organizationId, name, and email are required' });
-        return;
+        return res.status(400).json({ error: 'organizationId, name, and email are required' });
       }
 
       // Generate a random password if not provided
@@ -990,14 +1115,14 @@ export const createClient = onRequest(
       // Also add to users collection for login
       await db.collection('users').doc(docRef.id).set(clientData);
       
-      res.status(201).json({
+      return res.status(201).json({
         id: docRef.id,
         tempPassword: generatedPassword, // Return password so admin can share it
         ...clientData
       });
     } catch (error) {
       console.error('Error creating client:', error);
-      res.status(500).json({ error: 'Failed to create client' });
+      return res.status(500).json({ error: 'Failed to create client' });
     }
   });
 });
@@ -1013,8 +1138,7 @@ export const updateClient = onRequest(
       const { id, ...updateData } = req.body;
       
       if (!id) {
-        res.status(400).json({ error: 'Client ID is required' });
-        return;
+        return res.status(400).json({ error: 'Client ID is required' });
       }
 
       const clientRef = db.collection('clients').doc(id);
@@ -1023,10 +1147,76 @@ export const updateClient = onRequest(
         updatedAt: new Date().toISOString()
       });
 
-      res.json({ success: true, message: 'Client updated successfully' });
+      // Also update in users collection if exists
+      const userRef = db.collection('users').doc(id);
+      const userDoc = await userRef.get();
+      if (userDoc.exists) {
+        await userRef.update({
+          ...updateData,
+          updatedAt: new Date().toISOString()
+        });
+      }
+
+      return res.json({ success: true, message: 'Client updated successfully' });
     } catch (error) {
       console.error('Error updating client:', error);
-      res.status(500).json({ error: 'Failed to update client' });
+      return res.status(500).json({ error: 'Failed to update client' });
+    }
+  });
+});
+
+export const deleteClient = onRequest(
+  { 
+    cors: true,
+    invoker: "public"
+  },
+  async (req: Request, res: Response) => {
+  return cors(req, res, async () => {
+    try {
+      const { id, organizationId } = req.body;
+      
+      logger.info(`Delete client request:`, { id, organizationId, method: req.method });
+      
+      if (!id) {
+        logger.warn('Client ID is missing in delete request');
+        return res.status(400).json({ error: 'Client ID is required' });
+      }
+
+      // Check if client exists before deleting
+      const clientRef = db.collection('clients').doc(id);
+      const clientDoc = await clientRef.get();
+      
+      if (!clientDoc.exists) {
+        logger.warn(`Client ${id} not found in clients collection`);
+        // Still try to delete from users collection
+        const userRef = db.collection('users').doc(id);
+        const userDoc = await userRef.get();
+        if (userDoc.exists) {
+          await userRef.delete();
+          logger.info(`Client ${id} deleted from users collection only`);
+          return res.status(200).json({ success: true, message: 'Client deleted from users collection' });
+        }
+        return res.status(404).json({ error: 'Client not found' });
+      }
+
+      // Delete from clients collection
+      await clientRef.delete();
+      logger.info(`Client ${id} deleted from clients collection`);
+
+      // Also delete from users collection if exists
+      const userRef = db.collection('users').doc(id);
+      const userDoc = await userRef.get();
+      if (userDoc.exists) {
+        await userRef.delete();
+        logger.info(`Client ${id} deleted from users collection`);
+      }
+
+      logger.info(`Client ${id} deleted successfully`);
+      return res.status(200).json({ success: true, message: 'Client deleted successfully' });
+    } catch (error: any) {
+      logger.error('Error deleting client:', error);
+      const errorMessage = error?.message || 'Failed to delete client';
+      return res.status(500).json({ error: errorMessage });
     }
   });
 });
