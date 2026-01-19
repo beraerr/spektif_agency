@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { apiClient } from '@/lib/api'
 import { toast } from 'sonner'
+import { createActivity } from '@/hooks/use-activities'
 
 interface CreateClientData {
   name: string
@@ -65,6 +66,21 @@ export function CreateClientModal({
         notes: formData.notes || undefined,
         password: formData.password || undefined
       })
+      
+      // Create activity log
+      try {
+        await createActivity(
+          organizationId,
+          'client_added',
+          `<span class="font-medium">${formData.name}</span> yeni müşteri olarak eklendi`,
+          {
+            userName: formData.name,
+            company: formData.company
+          }
+        )
+      } catch (activityError) {
+        console.error('Error creating activity:', activityError)
+      }
       
       toast.success('Müşteri başarıyla oluşturuldu!')
       setFormData({

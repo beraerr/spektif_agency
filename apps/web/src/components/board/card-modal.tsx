@@ -270,8 +270,7 @@ export function CardModal({ card, isOpen, onClose, onUpdate, boardId }: CardModa
             {/* Main Content */}
             <div className="col-span-2 space-y-6">
               {/* Card Title */}
-              <div className="flex items-start space-x-3">
-                <CheckSquare className="w-5 h-5 mt-1 text-muted-foreground" />
+              <div className="flex items-start">
                 <div className="flex-1">
                   {isEditingTitle ? (
                     <div className="space-y-2">
@@ -310,7 +309,7 @@ export function CardModal({ card, isOpen, onClose, onUpdate, boardId }: CardModa
                       className="cursor-pointer group"
                       onClick={() => setIsEditingTitle(true)}
                     >
-                      <div className="border border-border rounded-lg p-3 bg-muted group-hover:bg-card group-hover:border-border transition-all duration-200 min-h-[60px]">
+                      <div className="border border-transparent rounded-lg group-hover:border-border/50 transition-all duration-200 min-h-[60px]">
                         <h2 className="text-xl font-semibold text-foreground">
                           {title || "Card title..."}
                         </h2>
@@ -390,7 +389,7 @@ export function CardModal({ card, isOpen, onClose, onUpdate, boardId }: CardModa
                   </div>
                 ) : (
                   <div
-                    className="bg-muted p-3 rounded cursor-pointer hover:bg-card min-h-[60px] flex items-center"
+                    className="border border-transparent rounded p-3 cursor-pointer hover:border-border/50 transition-all duration-200 min-h-[60px] flex items-center"
                     onClick={() => setIsEditingDescription(true)}
                   >
                     {description || (
@@ -425,7 +424,7 @@ export function CardModal({ card, isOpen, onClose, onUpdate, boardId }: CardModa
                   </div>
                   <div className="space-y-2">
                     {card.attachments.map((attachment, index) => (
-                      <div key={attachment.id || index} className="flex items-center space-x-3 p-3 border border-border rounded hover:bg-muted transition-colors">
+                      <div key={attachment.id || index} className="flex items-center space-x-3 p-3 border border-transparent rounded hover:border-border/50 transition-all duration-200">
                         <div className="w-10 h-10 bg-purple-100 dark:bg-purple-900/30 rounded flex items-center justify-center">
                           <Paperclip className="w-5 h-5 text-purple-600 dark:text-purple-400" />
                         </div>
@@ -570,7 +569,7 @@ export function CardModal({ card, isOpen, onClose, onUpdate, boardId }: CardModa
                             </AvatarFallback>
                           </Avatar>
                           <div className="flex-1">
-                            <div className="bg-card border border-border rounded p-3">
+                            <div className="border border-transparent rounded p-3 hover:border-border/50 transition-all duration-200">
                               <div className="flex items-center justify-between mb-2">
                                 <span className="font-medium text-sm text-foreground">
                                   {comment.author?.name || 'Unknown User'}
@@ -596,7 +595,7 @@ export function CardModal({ card, isOpen, onClose, onUpdate, boardId }: CardModa
                   <h3 className="font-semibold text-foreground mb-3">Members</h3>
                   <div className="space-y-2">
                     {card.members.map((member, index) => (
-                      <div key={index} className="flex items-center justify-between bg-muted rounded-lg p-2">
+                      <div key={index} className="flex items-center justify-between border border-transparent rounded-lg p-2 hover:border-border/50 transition-all duration-200">
                         <div className="flex items-center space-x-2">
                           <Avatar className="w-6 h-6">
                             <AvatarFallback className="bg-blue-500 text-white text-xs">

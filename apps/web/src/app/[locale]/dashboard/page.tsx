@@ -17,6 +17,8 @@ import { CreateEmployeeModal } from '@/components/employee/create-employee-modal
 import { CreateClientModal } from '@/components/client/create-client-modal'
 import EmployeeDashboardPage from '@/app/[locale]/employee/dashboard/page'
 import ClientDashboardPage from '@/app/[locale]/client/dashboard/page'
+import { useActivities, formatActivityTime, createActivity } from '@/hooks/use-activities'
+import { useDeadlines, formatDeadline, getDeadlineUrgency } from '@/hooks/use-deadlines'
 
 export default function DashboardPage() {
   const { data: session, status } = useSession()
@@ -201,6 +203,10 @@ function HomeView({ session }: { session: any }) {
   const t = useTranslations()
   const firstName = session.user?.name?.split(' ')[0] || ''
   const [stats, setStats] = useState({ projects: 0, completed: 0, pending: 0, members: 0 })
+  
+  // Real-time hooks
+  const { activities, loading: activitiesLoading } = useActivities('spektif', 10)
+  const { deadlines, loading: deadlinesLoading } = useDeadlines('spektif')
 
   useEffect(() => {
     const loadStats = async () => {
@@ -309,35 +315,39 @@ function HomeView({ session }: { session: any }) {
             <CardTitle>Son Aktiviteler</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              <div className="flex items-center space-x-3">
-                <div className="w-2 h-2 bg-brand-primary rounded-full"></div>
-                <div className="flex-1">
-                  <p className="text-sm">
-                    <span className="font-medium">Ahmet Yılmaz</span> "Sosyal Medya Kampanyası" kartını taşıdı
-                  </p>
-                  <p className="text-xs text-muted-foreground">2 dakika önce</p>
-                </div>
+            {activitiesLoading ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="w-5 h-5 animate-spin" />
               </div>
-              <div className="flex items-center space-x-3">
-                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                <div className="flex-1">
-                  <p className="text-sm">
-                    <span className="font-medium">Elif Kaya</span> yeni bir mesaj gönderdi
-                  </p>
-                  <p className="text-xs text-muted-foreground">5 dakika önce</p>
-                </div>
+            ) : activities.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <p className="text-sm">Henüz aktivite yok</p>
               </div>
-              <div className="flex items-center space-x-3">
-                <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                <div className="flex-1">
-                  <p className="text-sm">
-                    <span className="font-medium">Mehmet Can</span> "İçerik Üretimi" projesine yorum ekledi
-                  </p>
-                  <p className="text-xs text-muted-foreground">1 saat önce</p>
-                </div>
+            ) : (
+              <div className="space-y-4">
+                {activities.map((activity) => {
+                  const dotColor = 
+                    activity.type === 'project_created' ? 'bg-brand-primary' :
+                    activity.type === 'employee_added' ? 'bg-blue-500' :
+                    activity.type === 'client_added' ? 'bg-purple-500' :
+                    activity.type === 'payment_received' ? 'bg-green-500' :
+                    activity.type === 'payment_overdue' ? 'bg-red-500' :
+                    'bg-gray-500'
+                  
+                  return (
+                    <div key={activity.id} className="flex items-center space-x-3">
+                      <div className={`w-2 h-2 ${dotColor} rounded-full`}></div>
+                      <div className="flex-1">
+                        <p className="text-sm" dangerouslySetInnerHTML={{ __html: activity.message }} />
+                        <p className="text-xs text-muted-foreground">
+                          {formatActivityTime(activity.timestamp)}
+                        </p>
+                      </div>
+                    </div>
+                  )
+                })}
               </div>
-            </div>
+            )}
           </CardContent>
         </Card>
 
@@ -346,35 +356,47 @@ function HomeView({ session }: { session: any }) {
             <CardTitle>Yaklaşan Deadline'lar</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              <div className="flex items-center justify-between p-3 bg-red-50 dark:bg-red-950 rounded-lg">
-                <div>
-                  <p className="text-sm font-medium">Web Sitesi Tasarımı</p>
-                  <p className="text-xs text-muted-foreground">Müşteri Projesi</p>
-                </div>
-                <div className="text-right">
-                  <p className="text-sm font-medium text-red-600">Yarın</p>
-                </div>
+            {deadlinesLoading ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="w-5 h-5 animate-spin" />
               </div>
-              <div className="flex items-center justify-between p-3 bg-orange-50 dark:bg-orange-950 rounded-lg">
-                <div>
-                  <p className="text-sm font-medium">Logo Tasarımı</p>
-                  <p className="text-xs text-muted-foreground">Branding Projesi</p>
-                </div>
-                <div className="text-right">
-                  <p className="text-sm font-medium text-orange-600">3 gün</p>
-                </div>
+            ) : deadlines.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <p className="text-sm">Yaklaşan deadline yok</p>
               </div>
-              <div className="flex items-center justify-between p-3 bg-yellow-50 dark:bg-yellow-950 rounded-lg">
-                <div>
-                  <p className="text-sm font-medium">İçerik Stratejisi</p>
-                  <p className="text-xs text-muted-foreground">Pazarlama Projesi</p>
-                </div>
-                <div className="text-right">
-                  <p className="text-sm font-medium text-yellow-600">1 hafta</p>
-                </div>
+            ) : (
+              <div className="space-y-4">
+                {deadlines.slice(0, 5).map((deadline) => {
+                  const urgency = getDeadlineUrgency(deadline.dueDate)
+                  const bgColor = 
+                    urgency === 'red' ? 'bg-red-50 dark:bg-red-950' :
+                    urgency === 'orange' ? 'bg-orange-50 dark:bg-orange-950' :
+                    urgency === 'yellow' ? 'bg-yellow-50 dark:bg-yellow-950' :
+                    'bg-green-50 dark:bg-green-950'
+                  const textColor = 
+                    urgency === 'red' ? 'text-red-600' :
+                    urgency === 'orange' ? 'text-orange-600' :
+                    urgency === 'yellow' ? 'text-yellow-600' :
+                    'text-green-600'
+                  
+                  return (
+                    <div key={deadline.id} className={`flex items-center justify-between p-3 ${bgColor} rounded-lg`}>
+                      <div>
+                        <p className="text-sm font-medium">{deadline.title}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {deadline.projectType || 'Proje'}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className={`text-sm font-medium ${textColor}`}>
+                          {formatDeadline(deadline.dueDate)}
+                        </p>
+                      </div>
+                    </div>
+                  )
+                })}
               </div>
-            </div>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -559,6 +581,7 @@ function TemplatesView({ session }: { session: any }) {
       setIsCreating(true)
       const user = session as any
       const userId = user?.user?.id || 'admin'
+      const userName = user?.user?.name || 'Admin'
       
       const newBoard = await apiClient.createBoard({
         title: 'Yeni Board',
@@ -585,6 +608,22 @@ function TemplatesView({ session }: { session: any }) {
       } catch (listError) {
         console.error('Error creating default lists:', listError)
         // Don't fail board creation if lists fail
+      }
+      
+      // Create activity log
+      try {
+        await createActivity(
+          'spektif',
+          'project_created',
+          `<span class="font-medium">${userName}</span> yeni board oluşturdu: <span class="font-medium">Yeni Board</span>`,
+          {
+            userName,
+            projectName: 'Yeni Board',
+            boardId: (newBoard as any).id
+          }
+        )
+      } catch (activityError) {
+        console.error('Error creating activity:', activityError)
       }
       
       // Reload boards from server to get fresh data (force refresh to bypass cache)

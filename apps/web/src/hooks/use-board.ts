@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useSession } from 'next-auth/react'
 import { apiClient } from '@/lib/api'
 import { Board, List, Card } from './use-boards'
+import { createActivity } from './use-activities'
 
 export function useBoard(boardId: string) {
   const { data: session } = useSession()
@@ -156,16 +157,19 @@ export function useBoard(boardId: string) {
     position: number
     members: string[]
     attachments: any[]
+    labels: string[]
   }>) => {
     if (!board) return
 
     try {
       // Find the card first to preserve its listId
       let cardListId: string | undefined
+      let oldCard: Card | undefined
       for (const list of board.lists) {
         const card = list.cards.find(c => c.id === cardId)
         if (card) {
           cardListId = card.listId || list.id
+          oldCard = card
           break
         }
       }
@@ -182,6 +186,38 @@ export function useBoard(boardId: string) {
       
       // Ensure the updated card has listId
       const cardWithListId = { ...updatedCard, listId: updatedCard.listId || cardListId }
+      
+      // Check if labels changed and now includes "proje" label
+      if (data.labels && board.organizationId) {
+        const newLabels = data.labels || []
+        const oldLabels = oldCard?.labels || []
+        const hasNewProjeLabel = newLabels.some((l: string) => 
+          l.toLowerCase().includes('proje') || l.toLowerCase() === 'project'
+        )
+        const hadOldProjeLabel = oldLabels.some((l: string) => 
+          l.toLowerCase().includes('proje') || l.toLowerCase() === 'project'
+        )
+        
+        // If proje label was just added (not there before), create activity
+        if (hasNewProjeLabel && !hadOldProjeLabel) {
+          const userName = (session?.user as any)?.name || 'Admin'
+          try {
+            await createActivity(
+              board.organizationId,
+              'project_created',
+              `<span class="font-medium">${userName}</span> yeni proje oluşturdu: <span class="font-medium">${cardWithListId.title || 'Untitled'}</span>`,
+              {
+                userName,
+                projectName: cardWithListId.title,
+                cardId,
+                boardId: board.id
+              }
+            )
+          } catch (activityError) {
+            console.error('Error creating activity:', activityError)
+          }
+        }
+      }
       
       setBoard(prev => {
         if (!prev) return null

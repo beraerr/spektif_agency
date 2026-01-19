@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { UserPlus, X, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { apiClient } from '@/lib/api'
+import { createActivity } from '@/hooks/use-activities'
 
 interface CreateEmployeeModalProps {
   isOpen: boolean
@@ -69,6 +70,23 @@ export function CreateEmployeeModal({
 
     try {
       const result = await apiClient.createEmployee(organizationId, formData) as any
+      
+      // Create activity log
+      try {
+        await createActivity(
+          organizationId,
+          'employee_added',
+          `<span class="font-medium">${formData.name} ${formData.surname}</span> yeni çalışan olarak eklendi`,
+          {
+            userName: `${formData.name} ${formData.surname}`,
+            position: formData.position,
+            role: formData.role
+          }
+        )
+      } catch (activityError) {
+        console.error('Error creating activity:', activityError)
+      }
+      
       toast.success(`Çalışan başarıyla oluşturuldu! Geçici şifre: ${result.tempPassword}`)
       onEmployeeCreated()
       onClose()
