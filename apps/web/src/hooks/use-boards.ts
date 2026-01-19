@@ -1,93 +1,10 @@
 import { useState, useEffect } from 'react'
 import { useSession } from 'next-auth/react'
 import { apiClient } from '@/lib/api'
+import { Board, List, Card, BoardMember, CardMember, Attachment, Comment } from '@/types'
 
-export interface Board {
-  id: string
-  title: string
-  description?: string
-  color?: string
-  organizationId: string
-  createdAt: string
-  updatedAt: string
-  lists: List[]
-  members: BoardMember[]
-  _count: {
-    lists: number
-  }
-}
-
-export interface List {
-  id: string
-  boardId: string
-  title: string
-  position: number
-  cards: Card[]
-}
-
-export interface Card {
-  id: string
-  listId: string
-  title: string
-  description?: string
-  dueDate?: string
-  position: number
-  archived: boolean
-  createdBy: string
-  members: CardMember[]
-  attachments: Attachment[]
-  _count?: {
-    comments: number
-  }
-  comments?: Comment[]
-}
-
-export interface BoardMember {
-  id: string
-  boardId: string
-  userId: string
-  role: 'ADMIN' | 'EDITOR' | 'VIEWER' | 'CLIENT_VIEW'
-  user: {
-    id: string
-    name: string
-    email: string
-    image?: string
-  }
-}
-
-export interface CardMember {
-  id: string
-  cardId: string
-  userId: string
-  user: {
-    id: string
-    name: string
-    email: string
-    image?: string
-  }
-}
-
-export interface Attachment {
-  id: string
-  cardId?: string
-  url: string
-  name: string
-  size: number
-  createdAt: string
-}
-
-export interface Comment {
-  id: string
-  cardId: string
-  authorId: string
-  text: string
-  createdAt: string
-  updatedAt: string
-  author: {
-    id: string
-    name: string
-  }
-}
+// Re-export types for backwards compatibility
+export type { Board, List, Card, BoardMember, CardMember, Attachment, Comment }
 
 export function useBoards(organizationId: string) {
   const { data: session } = useSession()

@@ -1,0 +1,30 @@
+{
+  "models": [
+    {
+      "title": "Local DeepSeek",
+      "provider": "ollama",
+      "model": "deepseek-coder:6.7b-instruct-q4_K_M",
+      "apiBase": "http://localhost:11434",
+      "systemMessage": "Sen uzman bir yazılım mühendisisin. Kodları incelerken güvenlik, performans ve okunabilirliğe odaklan."
+    }
+  ],
+  "tabAutocompleteModel": {
+    "title": "Local DeepSeek (Autocomplete)",
+    "provider": "ollama",
+    "model": "deepseek-coder:6.7b-instruct-q4_K_M",
+    "apiBase": "http://localhost:11434"
+  },
+  "contextProviders": [
+    { "name": "file", "params": {} },
+    { "name": "open-files", "params": {} },
+    { "name": "terminal", "params": {} },
+    { "name": "diff", "params": {} }
+  ],
+  "customCommands": [
+    {
+      "name": "refactor",
+      "prompt": "Refactor this code to be more efficient and readable. Show me the changes before applying."
+    }
+  ],
+  "allowAnonymousTelemetry": false
+}

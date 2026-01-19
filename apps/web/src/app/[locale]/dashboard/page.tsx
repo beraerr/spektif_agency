@@ -200,6 +200,49 @@ export default function DashboardPage() {
 function HomeView({ session }: { session: any }) {
   const t = useTranslations()
   const firstName = session.user?.name?.split(' ')[0] || ''
+  const [stats, setStats] = useState({ projects: 0, completed: 0, pending: 0, members: 0 })
+
+  useEffect(() => {
+    const loadStats = async () => {
+      try {
+        const userId = (session?.user as any)?.id || 'admin'
+        const [boardsData, employeesData, clientsData] = await Promise.all([
+          apiClient.getBoards(userId) as Promise<any[]>,
+          apiClient.getEmployees('spektif') as Promise<any[]>,
+          apiClient.getClients('spektif') as Promise<any[]>
+        ])
+        
+        let projectCount = 0
+        let completedCount = 0
+        let pendingCount = 0
+        
+        boardsData?.forEach((board: any) => {
+          board.lists?.forEach((list: any) => {
+            list.cards?.forEach((card: any) => {
+              const hasProjeLabel = card.labels?.some((l: string) => 
+                l.toLowerCase().includes('proje') || l.toLowerCase() === 'project'
+              )
+              if (hasProjeLabel) projectCount++
+              if (list.title?.toLowerCase().includes('tamamlan')) completedCount++
+              else pendingCount++
+            })
+          })
+        })
+        
+        setStats({
+          projects: projectCount || boardsData?.length || 0,
+          completed: completedCount,
+          pending: pendingCount,
+          members: (employeesData?.length || 0) + (clientsData?.length || 0)
+        })
+      } catch (error) {
+        console.error('Error loading stats:', error)
+      }
+    }
+    loadStats()
+    const interval = setInterval(loadStats, 10000)
+    return () => clearInterval(interval)
+  }, [session])
 
   return (
     <div className="space-y-6">
@@ -220,8 +263,8 @@ function HomeView({ session }: { session: any }) {
             <Folder className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">12</div>
-            <p className="text-xs text-muted-foreground">+2 bu hafta</p>
+            <div className="text-2xl font-bold">{stats.projects}</div>
+            <p className="text-xs text-muted-foreground">Proje etiketli kartlar</p>
           </CardContent>
         </Card>
 
@@ -231,8 +274,8 @@ function HomeView({ session }: { session: any }) {
             <Sparkles className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">48</div>
-            <p className="text-xs text-muted-foreground">+12 bu hafta</p>
+            <div className="text-2xl font-bold">{stats.completed}</div>
+            <p className="text-xs text-muted-foreground">Tamamlanan listesinde</p>
           </CardContent>
         </Card>
 
@@ -242,8 +285,8 @@ function HomeView({ session }: { session: any }) {
             <Calendar className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">23</div>
-            <p className="text-xs text-muted-foreground">-3 bu hafta</p>
+            <div className="text-2xl font-bold">{stats.pending}</div>
+            <p className="text-xs text-muted-foreground">Diger listelerden</p>
           </CardContent>
         </Card>
 
@@ -253,8 +296,8 @@ function HomeView({ session }: { session: any }) {
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">8</div>
-            <p className="text-xs text-muted-foreground">+1 bu hafta</p>
+            <div className="text-2xl font-bold">{stats.members}</div>
+            <p className="text-xs text-muted-foreground">Calisan + Musteri</p>
           </CardContent>
         </Card>
       </div>

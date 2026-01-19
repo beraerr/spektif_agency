@@ -1,7 +1,8 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import { Dialog, DialogContent, DialogHeader } from '@/components/ui/dialog'
+import { useSession } from 'next-auth/react'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
@@ -37,6 +38,8 @@ import { LabelsModal } from './labels-modal'
 import { AttachmentModal } from './attachment-modal'
 import { ChecklistManager } from './checklist-manager'
 import { apiClient } from '@/lib/api'
+import { cardService } from '@/lib/api/services/card.service'
+import { Comment } from '@/types'
 import { toast } from 'sonner'
 
 interface CardModalProps {
@@ -53,13 +56,6 @@ interface ChecklistItem {
   completed: boolean
 }
 
-interface Comment {
-  id: string
-  user: string
-  text: string
-  timestamp: string
-}
-
 interface AvailableMember {
   id: string
   name: string
@@ -70,6 +66,7 @@ interface AvailableMember {
 }
 
 export function CardModal({ card, isOpen, onClose, onUpdate, boardId }: CardModalProps) {
+  const { data: session } = useSession()
   const [title, setTitle] = useState(card?.title || '')
   const [isEditingTitle, setIsEditingTitle] = useState(false)
   const [description, setDescription] = useState(card?.description || '')
@@ -79,9 +76,8 @@ export function CardModal({ card, isOpen, onClose, onUpdate, boardId }: CardModa
     { id: '1', text: 'Sample task', completed: false },
     { id: '2', text: 'Another task', completed: true }
   ])
-  const [comments, setComments] = useState<Comment[]>([
-    { id: '1', user: 'You', text: 'This is a sample comment', timestamp: '2 hours ago' }
-  ])
+  const [comments, setComments] = useState<Comment[]>([])
+  const [isLoadingComments, setIsLoadingComments] = useState(false)
 
   const [showDatePicker, setShowDatePicker] = useState(false)
   const [showLabelPicker, setShowLabelPicker] = useState(false)
@@ -96,6 +92,29 @@ export function CardModal({ card, isOpen, onClose, onUpdate, boardId }: CardModa
   const [availableMembers, setAvailableMembers] = useState<AvailableMember[]>([])
   const [isLoadingMembers, setIsLoadingMembers] = useState(false)
 
+  // Fetch comments when card opens
+  useEffect(() => {
+    const fetchComments = async () => {
+      if (!card?.id || !boardId || !isOpen) return
+      
+      try {
+        setIsLoadingComments(true)
+        const fetchedComments = await cardService.getComments(card.id, boardId)
+        setComments(fetchedComments || [])
+      } catch (error) {
+        console.error('Error fetching comments:', error)
+        toast.error('Yorumlar yüklenirken hata oluştu')
+        setComments([])
+      } finally {
+        setIsLoadingComments(false)
+      }
+    }
+
+    if (isOpen && card?.id && boardId) {
+      fetchComments()
+    }
+  }, [card?.id, boardId, isOpen])
+
   // Fetch available members when card changes
   useEffect(() => {
     const fetchAvailableMembers = async () => {
@@ -103,17 +122,31 @@ export function CardModal({ card, isOpen, onClose, onUpdate, boardId }: CardModa
       
       try {
         setIsLoadingMembers(true)
-        // Get employees from the organization
-        const members = await apiClient.getEmployees('spektif') as any[]
-        const availableMembers: AvailableMember[] = members.map(member => ({
+        // Get employees AND clients from the organization
+        const [employees, clients] = await Promise.all([
+          apiClient.getEmployees('spektif') as Promise<any[]>,
+          apiClient.getClients('spektif') as Promise<any[]>
+        ])
+        
+        const employeeMembers: AvailableMember[] = (employees || []).map(member => ({
           id: member.id,
           name: member.name,
           surname: member.surname || '',
           email: member.email,
-          position: member.position || 'Employee',
+          position: member.position || 'Calisan',
           avatar: member.avatar || ''
         }))
-        setAvailableMembers(availableMembers)
+        
+        const clientMembers: AvailableMember[] = (clients || []).map(client => ({
+          id: client.id,
+          name: client.name,
+          surname: '',
+          email: client.email,
+          position: 'Musteri',
+          avatar: ''
+        }))
+        
+        setAvailableMembers([...employeeMembers, ...clientMembers])
       } catch (error) {
         console.error('Error fetching available members:', error)
         toast.error('Üyeler yüklenirken hata oluştu')
@@ -128,6 +161,18 @@ export function CardModal({ card, isOpen, onClose, onUpdate, boardId }: CardModa
     }
   }, [card?.id])
 
+  // Helper function to format time ago
+  const getTimeAgo = (date: Date): string => {
+    const seconds = Math.floor((new Date().getTime() - date.getTime()) / 1000)
+    
+    if (seconds < 60) return 'just now'
+    if (seconds < 3600) return `${Math.floor(seconds / 60)} minutes ago`
+    if (seconds < 86400) return `${Math.floor(seconds / 3600)} hours ago`
+    if (seconds < 604800) return `${Math.floor(seconds / 86400)} days ago`
+    
+    return date.toLocaleDateString()
+  }
+
   if (!card) return null
 
   const labelColors = {
@@ -141,16 +186,31 @@ export function CardModal({ card, isOpen, onClose, onUpdate, boardId }: CardModa
 
   const availableLabels = ['Priority', 'Design', 'Strategy', 'Research', 'Review', 'Important']
 
-  const handleAddComment = () => {
-    if (newComment.trim()) {
-      const comment: Comment = {
-        id: Date.now().toString(),
-        user: 'You',
-        text: newComment,
-        timestamp: 'just now'
-      }
-      setComments([...comments, comment])
+  const handleAddComment = async () => {
+    if (!newComment.trim() || !card?.id || !boardId || !session?.user) {
+      return
+    }
+
+    try {
+      const userId = (session.user as any).id
+      const userName = session.user.name || 'Unknown User'
+      
+      // Create comment in backend
+      const createdComment = await cardService.createComment(
+        card.id,
+        boardId,
+        newComment.trim(),
+        userId,
+        userName
+      )
+
+      // Add comment to local state
+      setComments([...comments, createdComment])
       setNewComment('')
+      toast.success('Comment added successfully!')
+    } catch (error) {
+      console.error('Error adding comment:', error)
+      toast.error('Failed to add comment')
     }
   }
 
@@ -172,6 +232,7 @@ export function CardModal({ card, isOpen, onClose, onUpdate, boardId }: CardModa
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto p-0">
+        <DialogTitle className="sr-only">Card Details</DialogTitle>
         {/* Card Header with Cover */}
         <div className="relative h-32 bg-gradient-to-r from-purple-500 to-pink-500 rounded-t-lg">
           <div className="absolute top-4 right-4 flex space-x-2">
@@ -204,9 +265,10 @@ export function CardModal({ card, isOpen, onClose, onUpdate, boardId }: CardModa
                       <div className="flex space-x-2">
                         <Button 
                           size="sm" 
-                          onClick={() => {
+                          onClick={async () => {
                             setIsEditingTitle(false)
-                            onUpdate?.({ ...card, title })
+                            const updatedCard = { ...card, title }
+                            onUpdate?.(updatedCard)
                           }}
                         >
                           Save
@@ -291,10 +353,17 @@ export function CardModal({ card, isOpen, onClose, onUpdate, boardId }: CardModa
                       className="min-h-[100px]"
                     />
                     <div className="flex space-x-2">
-                      <Button size="sm" onClick={() => setIsEditingDescription(false)}>
+                      <Button size="sm" onClick={() => {
+                        setIsEditingDescription(false)
+                        const updatedCard = { ...card, description }
+                        onUpdate?.(updatedCard)
+                      }}>
                         Save
                       </Button>
-                      <Button variant="ghost" size="sm" onClick={() => setIsEditingDescription(false)}>
+                      <Button variant="ghost" size="sm" onClick={() => {
+                        setDescription(card.description || '')
+                        setIsEditingDescription(false)
+                      }}>
                         Cancel
                       </Button>
                     </div>
@@ -397,7 +466,9 @@ export function CardModal({ card, isOpen, onClose, onUpdate, boardId }: CardModa
                 {/* Add Comment */}
                 <div className="flex space-x-3">
                   <Avatar className="w-8 h-8">
-                    <AvatarFallback className="bg-blue-500 text-white text-xs">You</AvatarFallback>
+                    <AvatarFallback className="bg-blue-500 text-white text-xs">
+                      {session?.user?.name?.charAt(0) || 'U'}
+                    </AvatarFallback>
                   </Avatar>
                   <div className="flex-1 space-y-2">
                     <Textarea
@@ -414,24 +485,42 @@ export function CardModal({ card, isOpen, onClose, onUpdate, boardId }: CardModa
 
                 {/* Comments List */}
                 <div className="space-y-4">
-                  {comments.map((comment) => (
-                    <div key={comment.id} className="flex space-x-3">
-                      <Avatar className="w-8 h-8">
-                        <AvatarFallback className="bg-blue-500 text-white text-xs">
-                          {comment.user.charAt(0)}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="flex-1">
-                        <div className="bg-white border rounded p-3">
-                          <div className="flex items-center justify-between mb-2">
-                            <span className="font-medium text-sm">{comment.user}</span>
-                            <span className="text-xs text-gray-500">{comment.timestamp}</span>
-                          </div>
-                          <p className="text-sm">{comment.text}</p>
-                        </div>
-                      </div>
+                  {isLoadingComments ? (
+                    <div className="flex items-center justify-center py-4">
+                      <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                      <span className="text-sm text-muted-foreground">Loading comments...</span>
                     </div>
-                  ))}
+                  ) : comments.length === 0 ? (
+                    <div className="text-center py-4 text-sm text-gray-500">
+                      No comments yet. Be the first to comment!
+                    </div>
+                  ) : (
+                    comments.map((comment) => {
+                      const commentDate = new Date(comment.createdAt)
+                      const timeAgo = getTimeAgo(commentDate)
+                      
+                      return (
+                        <div key={comment.id} className="flex space-x-3">
+                          <Avatar className="w-8 h-8">
+                            <AvatarFallback className="bg-blue-500 text-white text-xs">
+                              {comment.author?.name?.charAt(0) || 'U'}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="flex-1">
+                            <div className="bg-white border rounded p-3">
+                              <div className="flex items-center justify-between mb-2">
+                                <span className="font-medium text-sm">
+                                  {comment.author?.name || 'Unknown User'}
+                                </span>
+                                <span className="text-xs text-gray-500">{timeAgo}</span>
+                              </div>
+                              <p className="text-sm">{comment.text}</p>
+                            </div>
+                          </div>
+                        </div>
+                      )
+                    })
+                  )}
                 </div>
               </div>
             </div>

@@ -533,3 +533,6 @@ class ApiClient {
 
 export const apiClient = new ApiClient()
 
+// Note: A new modular API structure is available at '@/lib/api/index'
+// You can gradually migrate to: import { apiClient } from '@/lib/api/index'
+// New structure: apiClient.boards.getBoards() instead of apiClient.getBoards()

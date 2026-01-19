@@ -24,6 +24,7 @@ export interface CardData {
   title: string
   description?: string
   dueDate?: string
+  listId?: string // List ID to track which list the card belongs to
   labels?: string[]
   members?: string[] // Array of member names for display
   attachments?: Attachment[] // Changed from number to array
@@ -43,7 +44,16 @@ const labelColors: Record<string, string> = {
   'Rapor': 'bg-yellow-500',
   'Video': 'bg-pink-500',
   'Reklam': 'bg-orange-500',
-  'Tamamlandı': 'bg-emerald-500'
+  'Tamamlandı': 'bg-emerald-500',
+  'Proje': 'bg-indigo-500',
+  'PRO LEVEL': 'bg-green-600',
+  'IMPORTANT': 'bg-red-600',
+  'GOOD TO DO': 'bg-blue-600',
+  'Priority': 'bg-red-500',
+  'Design': 'bg-purple-500',
+  'Strategy': 'bg-blue-500',
+  'Research': 'bg-green-500',
+  'Review': 'bg-orange-500'
 }
 
 export function DraggableCard({ card, onClick }: DraggableCardProps) {

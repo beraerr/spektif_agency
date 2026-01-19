@@ -51,6 +51,7 @@ export default function BoardPage() {
     moveCard, 
     deleteCard, 
     updateListsOrder,
+    updateBoard,
     refetch: fetchBoard
   } = useBoard(boardId)
 
@@ -66,6 +67,7 @@ export default function BoardPage() {
   const [isCardModalOpen, setIsCardModalOpen] = useState(false)
   const [availableMembers, setAvailableMembers] = useState<any[]>([])
   const [showMemberDropdown, setShowMemberDropdown] = useState(false)
+  const [showAllMembersDropdown, setShowAllMembersDropdown] = useState(false)
   // Background is handled by the layout
 
   // Load available members (employees + clients)
@@ -112,12 +114,13 @@ export default function BoardPage() {
         return
       }
       
-      await apiClient.updateBoard(boardId, {
-        members: [...currentMembers, memberId]
+      const newMembers = [...currentMembers, memberId]
+      
+      // Update board optimistically - UI updates immediately
+      await updateBoard({
+        members: newMembers
       })
       
-      // Refresh board to get updated members
-      fetchBoard()
       toast.success('Uye board\'a eklendi!')
       setShowMemberDropdown(false)
     } catch (error) {
@@ -131,12 +134,11 @@ export default function BoardPage() {
       const currentMembers = board?.members || []
       const newMembers = currentMembers.filter((id: string) => id !== memberId)
       
-      await apiClient.updateBoard(boardId, {
+      // Update board optimistically - UI updates immediately
+      await updateBoard({
         members: newMembers
       })
       
-      // Refresh board to get updated members
-      fetchBoard()
       toast.success('Uye board\'dan cikarildi!')
     } catch (error) {
       console.error('Error removing member:', error)
@@ -164,14 +166,14 @@ export default function BoardPage() {
   useEffect(() => {
     const handleRealtimeCardUpdate = (event: CustomEvent) => {
       console.log('🔄 Real-time card update received:', event.detail)
-      // Refresh board data when real-time updates are received
-      fetchBoard() // Use proper state update instead of reload
+      // Force refresh board data when real-time updates are received from other users
+      fetchBoard(true) // Force refresh to bypass cache
     }
 
     const handleRealtimeListUpdate = (event: CustomEvent) => {
       console.log('📝 Real-time list update received:', event.detail)
-      // Refresh board data when real-time updates are received
-      fetchBoard() // Use proper state update instead of reload
+      // Force refresh board data when real-time updates are received from other users
+      fetchBoard(true) // Force refresh to bypass cache
     }
 
     window.addEventListener('realtime-card-updated', handleRealtimeCardUpdate as EventListener)
@@ -181,7 +183,7 @@ export default function BoardPage() {
       window.removeEventListener('realtime-card-updated', handleRealtimeCardUpdate as EventListener)
       window.removeEventListener('realtime-list-updated', handleRealtimeListUpdate as EventListener)
     }
-  }, [])
+  }, [fetchBoard])
 
   // Convert board data to ListData format for drag-drop component
   const lists: ListData[] = board?.lists?.map(list => ({
@@ -192,6 +194,7 @@ export default function BoardPage() {
       title: card.title,
       description: card.description || '',
       dueDate: card.dueDate,
+      listId: (card as any).listId || list.id, // Preserve listId
       labels: (card as any).labels || [],
       members: card.members?.map(member => 
         typeof member === 'string' ? member : (member as any).name || (member as any).user?.name || 'Unknown'
@@ -230,17 +233,30 @@ export default function BoardPage() {
 
   const handleCardUpdate = async (updatedCard: CardData) => {
     try {
+      // Use listId from the card if available, otherwise find it from board state
+      let cardListId: string | undefined = updatedCard.listId
+      if (!cardListId) {
+        for (const list of board?.lists || []) {
+          const card = list.cards.find(c => c.id === updatedCard.id)
+          if (card) {
+            cardListId = (card as any).listId || list.id
+            break
+          }
+        }
+      }
+      
       // Update local state immediately for real-time UI
-      setSelectedCard(updatedCard)
+      setSelectedCard({ ...updatedCard, listId: cardListId })
       
       // Update card in database (all fields including members and attachments)
-      // This also updates the board state automatically
+      // This also updates the board state automatically via the hook
       await updateCard(updatedCard.id, {
         title: updatedCard.title,
         description: updatedCard.description,
         dueDate: updatedCard.dueDate,
         members: updatedCard.members,
-        attachments: updatedCard.attachments
+        attachments: updatedCard.attachments,
+        listId: cardListId // Preserve listId
       })
       
       // Emit real-time update
@@ -255,8 +271,8 @@ export default function BoardPage() {
         }
       })
       
-      // Refresh board to update all card displays
-      await fetchBoard()
+      // Don't call fetchBoard() here - the hook already updated the state
+      // Only refresh if there's a real-time update from another user
       toast.success('Card updated successfully!')
     } catch (error) {
       console.error('Failed to update card:', error)
@@ -369,11 +385,67 @@ export default function BoardPage() {
                 )
               })}
               {board?.members && board.members.length > 3 && (
-                <Avatar className="w-8 h-8 border-2 border-white/30">
-                  <AvatarFallback className="bg-gray-500 text-white text-xs font-medium">
-                    +{board.members.length - 3}
-                  </AvatarFallback>
-                </Avatar>
+                <DropdownMenu open={showAllMembersDropdown} onOpenChange={setShowAllMembersDropdown}>
+                  <DropdownMenuTrigger asChild>
+                    <Avatar className="w-8 h-8 border-2 border-white/30 cursor-pointer hover:scale-110 transition-transform">
+                      <AvatarFallback className="bg-gray-500 text-white text-xs font-medium">
+                        +{board.members.length - 3}
+                      </AvatarFallback>
+                    </Avatar>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-64 bg-white dark:bg-gray-800 max-h-96 overflow-y-auto">
+                    <div className="p-2">
+                      <p className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2 px-2">Tüm Üyeler ({board.members.length})</p>
+                      {/* Show all members except the first 3 that are already displayed */}
+                      {board.members.slice(3).map((memberId: string) => {
+                        const member = availableMembers.find(m => m.id === memberId)
+                        if (!member) return null
+                        const initials = member.name.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2)
+                        return (
+                          <DropdownMenuItem
+                            key={memberId}
+                            className="flex items-center justify-between cursor-pointer px-2 py-2 hover:bg-gray-100 dark:hover:bg-gray-700"
+                            onSelect={(e) => e.preventDefault()}
+                          >
+                            <div className="flex items-center space-x-2 flex-1">
+                              <Avatar className="w-8 h-8">
+                                <AvatarFallback className={`${member.type === 'employee' ? 'bg-blue-500' : 'bg-purple-500'} text-white text-xs font-medium`}>
+                                  {initials}
+                                </AvatarFallback>
+                              </Avatar>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
+                                  {member.name}
+                                </p>
+                                <p className="text-xs text-gray-500 dark:text-gray-400">
+                                  {member.type === 'employee' ? 'Çalışan' : 'Müşteri'}
+                                </p>
+                              </div>
+                            </div>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-6 w-6 p-0 hover:bg-red-100 dark:hover:bg-red-900/30 text-gray-500 hover:text-red-600 dark:hover:text-red-400"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                handleRemoveMember(memberId)
+                                setShowAllMembersDropdown(false)
+                              }}
+                              title="Üyeyi kaldır"
+                            >
+                              <X className="w-4 h-4" />
+                            </Button>
+                          </DropdownMenuItem>
+                        )
+                      })}
+                      {board.members.slice(3).length === 0 && (
+                        <div className="px-2 py-4 text-center">
+                          <p className="text-sm text-gray-500">Gösterilecek üye yok</p>
+                        </div>
+                      )}
+                    </div>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               )}
               <DropdownMenu open={showMemberDropdown} onOpenChange={setShowMemberDropdown}>
                 <DropdownMenuTrigger asChild>

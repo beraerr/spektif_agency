@@ -52,7 +52,7 @@ export function ApiLogger() {
         id: logId,
         timestamp: new Date(),
         method: (options?.method as string) || 'GET',
-        endpoint: url as string,
+        endpoint: typeof url === 'string' ? url : (url instanceof URL ? url.toString() : (url as Request).url || String(url)),
         requestBody,
       }
 

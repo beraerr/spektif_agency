@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useSession } from 'next-auth/react'
 import { apiClient } from '@/lib/api'
 import { Board, List, Card } from './use-boards'
@@ -9,7 +9,13 @@ export function useBoard(boardId: string) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  const fetchBoard = async () => {
+  const clearCache = useCallback(() => {
+    const cacheKey = `board_${boardId}`
+    localStorage.removeItem(cacheKey)
+    localStorage.removeItem(`${cacheKey}_time`)
+  }, [boardId])
+
+  const fetchBoard = useCallback(async (forceRefresh = false) => {
     const backendToken = (session?.user as any)?.backendToken
     if (!backendToken || !boardId) {
       setLoading(false)
@@ -19,17 +25,19 @@ export function useBoard(boardId: string) {
     try {
       setLoading(true)
       
-      // Check cache first
-      const cacheKey = `board_${boardId}`
-      const cached = localStorage.getItem(cacheKey)
-      const cacheTime = localStorage.getItem(`${cacheKey}_time`)
-      
-      // Use cache if less than 30 seconds old
-      if (cached && cacheTime && Date.now() - parseInt(cacheTime) < 30000) {
-        setBoard(JSON.parse(cached))
-        setError(null)
-        setLoading(false)
-        return
+      // Check cache first (unless forcing refresh)
+      if (!forceRefresh) {
+        const cacheKey = `board_${boardId}`
+        const cached = localStorage.getItem(cacheKey)
+        const cacheTime = localStorage.getItem(`${cacheKey}_time`)
+        
+        // Use cache if less than 30 seconds old
+        if (cached && cacheTime && Date.now() - parseInt(cacheTime) < 30000) {
+          setBoard(JSON.parse(cached))
+          setError(null)
+          setLoading(false)
+          return
+        }
       }
       
       const data = await apiClient.getBoard(boardId) as Board
@@ -37,6 +45,7 @@ export function useBoard(boardId: string) {
       setError(null)
       
       // Cache the data
+      const cacheKey = `board_${boardId}`
       localStorage.setItem(cacheKey, JSON.stringify(data))
       localStorage.setItem(`${cacheKey}_time`, Date.now().toString())
     } catch (err) {
@@ -44,11 +53,11 @@ export function useBoard(boardId: string) {
     } finally {
       setLoading(false)
     }
-  }
+  }, [session, boardId])
 
   useEffect(() => {
     fetchBoard()
-  }, [session, boardId])
+  }, [fetchBoard])
 
   const createList = async (title: string) => {
     if (!board) return
@@ -118,16 +127,22 @@ export function useBoard(boardId: string) {
         ...data
       }) as any
       
+      // Ensure the card has listId
+      const cardWithListId = { ...newCard, listId }
+      
       setBoard(prev => prev ? {
         ...prev,
         lists: prev.lists.map(list => 
           list.id === listId 
-            ? { ...list, cards: [...list.cards, newCard || {}] }
+            ? { ...list, cards: [...list.cards, cardWithListId] }
             : list
         )
       } : null)
       
-      return newCard
+      // Clear cache to force fresh fetch on next refresh
+      clearCache()
+      
+      return cardWithListId
     } catch (err) {
       throw new Error(err instanceof Error ? err.message : 'Failed to create card')
     }
@@ -145,10 +160,28 @@ export function useBoard(boardId: string) {
     if (!board) return
 
     try {
-      const updatedCard = await apiClient.updateCard(cardId, data) as any
+      // Find the card first to preserve its listId
+      let cardListId: string | undefined
+      for (const list of board.lists) {
+        const card = list.cards.find(c => c.id === cardId)
+        if (card) {
+          cardListId = card.listId || list.id
+          break
+        }
+      }
+      
+      // Ensure listId is preserved if not explicitly updated
+      const updateData = cardListId && !data.listId 
+        ? { ...data, listId: cardListId }
+        : data
+      
+      const updatedCard = await apiClient.updateCard(cardId, updateData) as any
       
       console.log('updateCard hook - API response:', updatedCard)
-      console.log('updateCard hook - Input data:', data)
+      console.log('updateCard hook - Input data:', updateData)
+      
+      // Ensure the updated card has listId
+      const cardWithListId = { ...updatedCard, listId: updatedCard.listId || cardListId }
       
       setBoard(prev => {
         if (!prev) return null
@@ -158,7 +191,7 @@ export function useBoard(boardId: string) {
           lists: prev.lists.map(list => ({
             ...list,
             cards: list.cards.map(card => 
-              card.id === cardId ? { ...card, ...(updatedCard || {}) } : card
+              card.id === cardId ? { ...card, ...cardWithListId } : card
             )
           }))
         }
@@ -167,7 +200,10 @@ export function useBoard(boardId: string) {
         return newBoard
       })
       
-      return updatedCard
+      // Clear cache to force fresh fetch on next refresh
+      clearCache()
+      
+      return cardWithListId
     } catch (err) {
       throw new Error(err instanceof Error ? err.message : 'Failed to update card')
     }
@@ -261,6 +297,37 @@ export function useBoard(boardId: string) {
     }
   }
 
+  const updateBoard = async (data: Partial<{
+    title: string
+    description: string
+    color: string
+    members: string[]
+    pinned: boolean
+    deleted: boolean
+  }>) => {
+    if (!board) return
+
+    try {
+      // Optimistically update the UI immediately
+      setBoard(prev => prev ? { ...prev, ...data } : null)
+      
+      // Clear cache to ensure fresh data on next fetch
+      clearCache()
+      
+      // Update in backend
+      const updatedBoard = await apiClient.updateBoard(board.id, data) as any
+      
+      // Update with server response to ensure consistency
+      setBoard(prev => prev ? { ...prev, ...(updatedBoard || {}) } : null)
+      
+      return updatedBoard
+    } catch (err) {
+      // Revert optimistic update on error
+      fetchBoard(true)
+      throw new Error(err instanceof Error ? err.message : 'Failed to update board')
+    }
+  }
+
   return {
     board,
     loading,
@@ -273,6 +340,7 @@ export function useBoard(boardId: string) {
     moveCard,
     deleteCard,
     updateListsOrder,
+    updateBoard,
     refetch: fetchBoard
   }
 }

@@ -474,6 +474,7 @@ export const createList = onRequest(
         return res.status(400).json({ error: 'Board ID and title are required' });
       }
 
+      const now = new Date().toISOString();
       const listData = {
         title,
         position: position || 0,
@@ -488,7 +489,11 @@ export const createList = onRequest(
 
       return res.json({
         id: docRef.id,
-        ...listData
+        title,
+        position: position || 0,
+        cards: [],
+        createdAt: now,
+        updatedAt: now
       });
     } catch (error) {
       logger.error('Create list error:', error);
@@ -562,6 +567,7 @@ export const createCard = onRequest(
         return res.status(400).json({ error: 'Board ID, List ID, and title are required' });
       }
 
+      const now = new Date().toISOString();
       const cardData = {
         title,
         description: description || '',
@@ -569,6 +575,8 @@ export const createCard = onRequest(
         listId,
         position: position || 0,
         members: [],
+        labels: [],
+        attachments: [],
         comments: [],
         createdAt: FieldValue.serverTimestamp(),
         updatedAt: FieldValue.serverTimestamp()
@@ -579,9 +587,20 @@ export const createCard = onRequest(
         .collection('cards')
         .add(cardData);
 
+      // Return with serializable timestamps
       return res.json({
         id: docRef.id,
-        ...cardData
+        title,
+        description: description || '',
+        dueDate: dueDate || null,
+        listId,
+        position: position || 0,
+        members: [],
+        labels: [],
+        attachments: [],
+        comments: [],
+        createdAt: now,
+        updatedAt: now
       });
     } catch (error) {
       logger.error('Create card error:', error);
@@ -827,6 +846,186 @@ export const getCards = onRequest(
       }
     } catch (error) {
       logger.error('Get cards error:', error);
+      return res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+});
+
+// ============================================================================
+// COMMENTS ENDPOINTS
+// ============================================================================
+
+export const createComment = onRequest(
+  { 
+    cors: true,
+    invoker: "public"
+  },
+  async (req: Request, res: Response) => {
+  return cors(req, res, async () => {
+    try {
+      const { cardId, boardId, text, authorId, authorName } = req.body;
+
+      if (!cardId || !boardId || !text || !authorId || !authorName) {
+        return res.status(400).json({ error: 'Card ID, Board ID, text, author ID, and author name are required' });
+      }
+
+      // Find the card in the board
+      const cardRef = db.collection('boards')
+        .doc(boardId)
+        .collection('cards')
+        .doc(cardId);
+      
+      const cardDoc = await cardRef.get();
+      
+      if (!cardDoc.exists) {
+        return res.status(404).json({ error: 'Card not found' });
+      }
+
+      // Create comment document
+      const commentData = {
+        cardId,
+        boardId,
+        authorId,
+        text,
+        createdAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
+        author: {
+          id: authorId,
+          name: authorName
+        }
+      };
+
+      const commentRef = await db.collection('boards')
+        .doc(boardId)
+        .collection('cards')
+        .doc(cardId)
+        .collection('comments')
+        .add(commentData);
+
+      // Update card's updatedAt timestamp
+      await cardRef.update({
+        updatedAt: FieldValue.serverTimestamp()
+      });
+
+      const commentDoc = await commentRef.get();
+      const commentDataWithId = commentDoc.data();
+      
+      // Convert timestamp to ISO string for response
+      const createdAt = commentDataWithId?.createdAt 
+        ? (commentDataWithId.createdAt as any).toDate().toISOString()
+        : new Date().toISOString();
+      const updatedAt = commentDataWithId?.updatedAt
+        ? (commentDataWithId.updatedAt as any).toDate().toISOString()
+        : new Date().toISOString();
+
+      return res.json({
+        id: commentRef.id,
+        cardId,
+        authorId,
+        text,
+        createdAt,
+        updatedAt,
+        author: {
+          id: authorId,
+          name: authorName
+        }
+      });
+    } catch (error) {
+      logger.error('Create comment error:', error);
+      return res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+});
+
+export const getComments = onRequest(
+  { 
+    cors: true,
+    invoker: "public"
+  },
+  async (req: Request, res: Response) => {
+  return cors(req, res, async () => {
+    try {
+      const { cardId, boardId } = req.query;
+
+      if (!cardId || !boardId) {
+        return res.status(400).json({ error: 'Card ID and Board ID are required' });
+      }
+
+      // Get all comments for the card
+      const commentsSnapshot = await db.collection('boards')
+        .doc(boardId as string)
+        .collection('cards')
+        .doc(cardId as string)
+        .collection('comments')
+        .orderBy('createdAt', 'asc')
+        .get();
+
+      const comments = commentsSnapshot.docs.map((doc: any) => {
+        const data = doc.data();
+        const createdAt = data.createdAt 
+          ? (data.createdAt as any).toDate().toISOString()
+          : new Date().toISOString();
+        const updatedAt = data.updatedAt
+          ? (data.updatedAt as any).toDate().toISOString()
+          : new Date().toISOString();
+
+        return {
+          id: doc.id,
+          cardId: data.cardId,
+          authorId: data.authorId,
+          text: data.text,
+          createdAt,
+          updatedAt,
+          author: data.author || {
+            id: data.authorId,
+            name: data.authorName || 'Unknown'
+          }
+        };
+      });
+
+      return res.json(comments);
+    } catch (error) {
+      logger.error('Get comments error:', error);
+      return res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+});
+
+export const deleteComment = onRequest(
+  { 
+    cors: true,
+    invoker: "public"
+  },
+  async (req: Request, res: Response) => {
+  return cors(req, res, async () => {
+    try {
+      const { commentId, cardId, boardId } = req.body;
+
+      if (!commentId || !cardId || !boardId) {
+        return res.status(400).json({ error: 'Comment ID, Card ID, and Board ID are required' });
+      }
+
+      // Delete comment
+      await db.collection('boards')
+        .doc(boardId)
+        .collection('cards')
+        .doc(cardId)
+        .collection('comments')
+        .doc(commentId)
+        .delete();
+
+      // Update card's updatedAt timestamp
+      await db.collection('boards')
+        .doc(boardId)
+        .collection('cards')
+        .doc(cardId)
+        .update({
+          updatedAt: FieldValue.serverTimestamp()
+        });
+
+      return res.json({ success: true, message: 'Comment deleted successfully' });
+    } catch (error) {
+      logger.error('Delete comment error:', error);
       return res.status(500).json({ error: 'Internal server error' });
     }
   });
