@@ -109,13 +109,18 @@ export default function BoardPage() {
   const handleAddMember = async (memberId: string) => {
     try {
       const currentMembers = board?.members || []
-      if (currentMembers.some(m => m.userId === memberId || m.id === memberId)) {
+      // Handle both string array and object array formats
+      const memberIds = currentMembers.map(m => 
+        typeof m === 'string' ? m : (m?.userId || m?.id)
+      )
+      
+      if (memberIds.includes(memberId)) {
         toast.error('Bu uye zaten board\'a ekli')
         return
       }
       
-      // Extract user IDs from current members and add the new member ID
-      const newMembers = [...currentMembers.map(m => m.userId), memberId]
+      // Add the new member ID
+      const newMembers = [...memberIds, memberId]
       
       // Update board optimistically - UI updates immediately
       await updateBoard({
@@ -133,10 +138,10 @@ export default function BoardPage() {
   const handleRemoveMember = async (memberId: string) => {
     try {
       const currentMembers = board?.members || []
-      // Filter out the member by userId and extract user IDs for the API
+      // Handle both string array and object array formats
       const newMembers = currentMembers
-        .filter(m => m.userId !== memberId)
-        .map(m => m.userId)
+        .map(m => typeof m === 'string' ? m : (m?.userId || m?.id))
+        .filter(id => id !== memberId)
       
       // Update board optimistically - UI updates immediately
       await updateBoard({
@@ -371,15 +376,22 @@ export default function BoardPage() {
 
           <div className="flex items-center space-x-3">
             <div className="flex items-center space-x-1">
-              {board?.members?.slice(0, 3).map((boardMember) => {
-                const member = availableMembers.find(m => m.id === boardMember.userId)
+              {board?.members?.slice(0, 3).map((boardMember, index) => {
+                // Handle both string (userId) and object ({ userId, id, ... }) formats
+                const memberId = typeof boardMember === 'string' ? boardMember : (boardMember?.userId || boardMember?.id)
+                if (!memberId) return null
+                
+                const member = availableMembers.find(m => m.id === memberId)
                 if (!member) return null
+                
                 const initials = member.name.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2)
+                const memberKey = typeof boardMember === 'string' ? boardMember : (boardMember?.id || `member-${index}`)
+                
                 return (
                   <Avatar 
-                    key={boardMember.id} 
+                    key={memberKey} 
                     className="w-8 h-8 border-2 border-white/30 cursor-pointer hover:scale-110 transition-transform"
-                    onClick={() => handleRemoveMember(boardMember.userId)}
+                    onClick={() => handleRemoveMember(memberId)}
                     title={`${member.name} - Kaldirmak icin tikla`}
                   >
                     <AvatarFallback className={`${member.type === 'employee' ? 'bg-blue-500' : 'bg-purple-500'} text-white text-xs font-medium`}>
@@ -401,13 +413,20 @@ export default function BoardPage() {
                     <div className="p-2">
                       <p className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2 px-2">Tüm Üyeler ({board.members.length})</p>
                       {/* Show all members except the first 3 that are already displayed */}
-                      {board.members.slice(3).map((boardMember) => {
-                        const member = availableMembers.find(m => m.id === boardMember.userId)
+                      {board.members.slice(3).map((boardMember, index) => {
+                        // Handle both string (userId) and object ({ userId, id, ... }) formats
+                        const memberId = typeof boardMember === 'string' ? boardMember : (boardMember?.userId || boardMember?.id)
+                        if (!memberId) return null
+                        
+                        const member = availableMembers.find(m => m.id === memberId)
                         if (!member) return null
+                        
                         const initials = member.name.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2)
+                        const memberKey = typeof boardMember === 'string' ? boardMember : (boardMember?.id || `member-${index + 3}`)
+                        
                         return (
                           <DropdownMenuItem
-                            key={boardMember.id}
+                            key={memberKey}
                             className="flex items-center justify-between cursor-pointer px-2 py-2 hover:bg-gray-100 dark:hover:bg-gray-700"
                             onSelect={(e) => e.preventDefault()}
                           >
@@ -432,7 +451,7 @@ export default function BoardPage() {
                               className="h-6 w-6 p-0 hover:bg-red-100 dark:hover:bg-red-900/30 text-gray-500 hover:text-red-600 dark:hover:text-red-400"
                               onClick={(e) => {
                                 e.stopPropagation()
-                                handleRemoveMember(boardMember.userId)
+                                handleRemoveMember(memberId)
                                 setShowAllMembersDropdown(false)
                               }}
                               title="Üyeyi kaldır"
@@ -459,7 +478,13 @@ export default function BoardPage() {
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-56 bg-white dark:bg-gray-800">
                   {availableMembers
-                    .filter(m => !board?.members?.includes(m.id))
+                    .filter(m => {
+                      // Handle both string array and object array formats
+                      const memberIds = (board?.members || []).map(bm => 
+                        typeof bm === 'string' ? bm : (bm?.userId || bm?.id)
+                      )
+                      return !memberIds.includes(m.id)
+                    })
                     .map(member => (
                       <DropdownMenuItem
                         key={member.id}

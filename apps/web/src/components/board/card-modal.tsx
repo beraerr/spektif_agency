@@ -30,7 +30,8 @@ import {
   ArrowRight,
   MoreHorizontal,
   Trash2,
-  Loader2
+  Loader2,
+  Download
 } from 'lucide-react'
 import { CardData } from './draggable-card'
 import { DatePickerModal } from './date-picker-modal'
@@ -91,6 +92,8 @@ export function CardModal({ card, isOpen, onClose, onUpdate, boardId }: CardModa
   const [isAddingMember, setIsAddingMember] = useState(false)
   const [availableMembers, setAvailableMembers] = useState<AvailableMember[]>([])
   const [isLoadingMembers, setIsLoadingMembers] = useState(false)
+  // Track member IDs for backend processing
+  const [memberIdMap, setMemberIdMap] = useState<Map<string, string>>(new Map())
 
   // Fetch comments when card opens
   useEffect(() => {
@@ -114,6 +117,23 @@ export function CardModal({ card, isOpen, onClose, onUpdate, boardId }: CardModa
       fetchComments()
     }
   }, [card?.id, boardId, isOpen])
+
+  // Initialize member ID map from card data
+  useEffect(() => {
+    if (card?.members) {
+      const initialMap = new Map<string, string>()
+      // Try to reconstruct member ID map from available members
+      card.members.forEach((memberName: string) => {
+        const member = availableMembers.find(m => 
+          `${m.name} ${m.surname}`.trim() === memberName
+        )
+        if (member) {
+          initialMap.set(memberName, member.id)
+        }
+      })
+      setMemberIdMap(initialMap)
+    }
+  }, [card?.members, availableMembers])
 
   // Fetch available members when card changes
   useEffect(() => {
@@ -251,7 +271,7 @@ export function CardModal({ card, isOpen, onClose, onUpdate, boardId }: CardModa
             <div className="col-span-2 space-y-6">
               {/* Card Title */}
               <div className="flex items-start space-x-3">
-                <CheckSquare className="w-5 h-5 mt-1 text-gray-600" />
+                <CheckSquare className="w-5 h-5 mt-1 text-muted-foreground" />
                 <div className="flex-1">
                   {isEditingTitle ? (
                     <div className="space-y-2">
@@ -290,11 +310,11 @@ export function CardModal({ card, isOpen, onClose, onUpdate, boardId }: CardModa
                       className="cursor-pointer group"
                       onClick={() => setIsEditingTitle(true)}
                     >
-                      <div className="border border-gray-200 rounded-lg p-3 bg-gray-50 group-hover:bg-white group-hover:border-gray-300 transition-all duration-200 min-h-[60px]">
-                        <h2 className="text-xl font-semibold text-gray-900">
+                      <div className="border border-border rounded-lg p-3 bg-muted group-hover:bg-card group-hover:border-border transition-all duration-200 min-h-[60px]">
+                        <h2 className="text-xl font-semibold text-foreground">
                           {title || "Card title..."}
                         </h2>
-                        <p className="text-sm text-gray-500 mt-1">Click to edit title</p>
+                        <p className="text-sm text-muted-foreground mt-1">Click to edit title</p>
                       </div>
                     </div>
                   )}
@@ -305,7 +325,7 @@ export function CardModal({ card, isOpen, onClose, onUpdate, boardId }: CardModa
               <div className="flex items-center space-x-4">
                 {card.labels && card.labels.length > 0 && (
                   <div className="flex items-center space-x-2">
-                    <span className="text-sm font-medium text-gray-700">Labels</span>
+                    <span className="text-sm font-medium text-foreground">Labels</span>
                     <div className="flex flex-wrap gap-1">
                       {card.labels.map((label) => (
                         <Badge
@@ -321,7 +341,7 @@ export function CardModal({ card, isOpen, onClose, onUpdate, boardId }: CardModa
 
                 {cardDueDate && (
                   <div className="flex items-center space-x-2">
-                    <span className="text-sm font-medium text-gray-700">Due date</span>
+                    <span className="text-sm font-medium text-foreground">Due date</span>
                     <div className="flex items-center space-x-1 px-2 py-1 bg-yellow-100 text-yellow-800 rounded text-sm">
                       <Calendar className="w-3 h-3" />
                       <span>{cardDueDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}, {cardDueDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</span>
@@ -334,8 +354,8 @@ export function CardModal({ card, isOpen, onClose, onUpdate, boardId }: CardModa
               {/* Description */}
               <div className="space-y-3">
                 <div className="flex items-center space-x-3">
-                  <MessageSquare className="w-5 h-5 text-gray-600" />
-                  <h3 className="font-semibold text-gray-900">Description</h3>
+                  <MessageSquare className="w-5 h-5 text-muted-foreground" />
+                  <h3 className="font-semibold text-foreground">Description</h3>
                   <Button
                     variant="ghost"
                     size="sm"
@@ -370,11 +390,11 @@ export function CardModal({ card, isOpen, onClose, onUpdate, boardId }: CardModa
                   </div>
                 ) : (
                   <div
-                    className="bg-gray-50 p-3 rounded cursor-pointer hover:bg-gray-100 min-h-[60px] flex items-center"
+                    className="bg-muted p-3 rounded cursor-pointer hover:bg-card min-h-[60px] flex items-center"
                     onClick={() => setIsEditingDescription(true)}
                   >
                     {description || (
-                      <span className="text-gray-500">Add a more detailed description...</span>
+                      <span className="text-muted-foreground">Add a more detailed description...</span>
                     )}
                   </div>
                 )}
@@ -393,8 +413,8 @@ export function CardModal({ card, isOpen, onClose, onUpdate, boardId }: CardModa
               {card.attachments && card.attachments.length > 0 && (
                 <div className="space-y-3">
                   <div className="flex items-center space-x-3">
-                    <Paperclip className="w-5 h-5 text-gray-600" />
-                    <h3 className="font-semibold text-gray-900">Attachments ({card.attachments.length})</h3>
+                    <Paperclip className="w-5 h-5 text-muted-foreground" />
+                    <h3 className="font-semibold text-foreground">Attachments ({card.attachments.length})</h3>
                     <Button 
                       variant="ghost" 
                       size="sm"
@@ -405,13 +425,13 @@ export function CardModal({ card, isOpen, onClose, onUpdate, boardId }: CardModa
                   </div>
                   <div className="space-y-2">
                     {card.attachments.map((attachment, index) => (
-                      <div key={attachment.id || index} className="flex items-center space-x-3 p-3 border rounded hover:bg-gray-50">
-                        <div className="w-10 h-10 bg-purple-100 rounded flex items-center justify-center">
-                          <Paperclip className="w-5 h-5 text-purple-600" />
+                      <div key={attachment.id || index} className="flex items-center space-x-3 p-3 border border-border rounded hover:bg-muted transition-colors">
+                        <div className="w-10 h-10 bg-purple-100 dark:bg-purple-900/30 rounded flex items-center justify-center">
+                          <Paperclip className="w-5 h-5 text-purple-600 dark:text-purple-400" />
                         </div>
                         <div className="flex-1">
-                          <p className="font-medium">{attachment.name}</p>
-                          <p className="text-sm text-gray-500">
+                          <p className="font-medium text-foreground">{attachment.name}</p>
+                          <p className="text-sm text-muted-foreground">
                             Added {new Date(attachment.uploadedAt).toLocaleDateString()}
                           </p>
                         </div>
@@ -422,27 +442,70 @@ export function CardModal({ card, isOpen, onClose, onUpdate, boardId }: CardModa
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent>
-                            <DropdownMenuItem onClick={() => window.open(attachment.url, '_blank')}>
+                            <DropdownMenuItem 
+                              onClick={async () => {
+                                try {
+                                  if (!attachment.url) {
+                                    toast.error('Attachment URL not available')
+                                    return
+                                  }
+
+                                  // Try to download the file
+                                  const response = await fetch(attachment.url)
+                                  if (!response.ok) {
+                                    // If fetch fails, try opening in new tab as fallback
+                                    window.open(attachment.url, '_blank')
+                                    return
+                                  }
+
+                                  const blob = await response.blob()
+                                  const downloadUrl = window.URL.createObjectURL(blob)
+                                  const link = document.createElement('a')
+                                  link.href = downloadUrl
+                                  link.download = attachment.name || 'attachment'
+                                  document.body.appendChild(link)
+                                  link.click()
+                                  document.body.removeChild(link)
+                                  window.URL.revokeObjectURL(downloadUrl)
+                                  
+                                  toast.success('Download started')
+                                } catch (error) {
+                                  console.error('Failed to download attachment:', error)
+                                  // Fallback to opening in new tab
+                                  window.open(attachment.url, '_blank')
+                                  toast.info('Opening attachment in new tab')
+                                }
+                              }}
+                              className="cursor-pointer"
+                            >
+                              <Download className="w-4 h-4 mr-2" />
                               Download
                             </DropdownMenuItem>
-                            <DropdownMenuItem onClick={async () => {
-                              try {
-                                if (!card || !boardId) return
-                                
-                                await apiClient.removeCardAttachment(card.id, boardId, attachment.id)
-                                
-                                const updatedCard = {
-                                  ...card,
-                                  attachments: card.attachments?.filter(att => att.id !== attachment.id) || []
+                            <DropdownMenuItem 
+                              onClick={async () => {
+                                try {
+                                  if (!card || !boardId) {
+                                    toast.error('Card or board information missing')
+                                    return
+                                  }
+                                  
+                                  await apiClient.removeCardAttachment(card.id, boardId, attachment.id)
+                                  
+                                  const updatedCard = {
+                                    ...card,
+                                    attachments: card.attachments?.filter(att => att.id !== attachment.id) || []
+                                  }
+                                  
+                                  onUpdate?.(updatedCard)
+                                  toast.success('Attachment removed successfully!')
+                                } catch (error) {
+                                  console.error('Failed to remove attachment:', error)
+                                  toast.error('Failed to remove attachment')
                                 }
-                                
-                                onUpdate?.(updatedCard)
-                                toast.success('Attachment removed successfully!')
-                              } catch (error) {
-                                console.error('Failed to remove attachment:', error)
-                                toast.error('Failed to remove attachment')
-                              }
-                            }}>
+                              }}
+                              className="cursor-pointer text-destructive focus:text-destructive"
+                            >
+                              <Trash2 className="w-4 h-4 mr-2" />
                               Remove
                             </DropdownMenuItem>
                           </DropdownMenuContent>
@@ -456,8 +519,8 @@ export function CardModal({ card, isOpen, onClose, onUpdate, boardId }: CardModa
               {/* Comments */}
               <div className="space-y-4">
                 <div className="flex items-center space-x-3">
-                  <MessageSquare className="w-5 h-5 text-gray-600" />
-                  <h3 className="font-semibold text-gray-900">Comments and activity</h3>
+                  <MessageSquare className="w-5 h-5 text-muted-foreground" />
+                  <h3 className="font-semibold text-foreground">Comments and activity</h3>
                   <Button variant="ghost" size="sm">
                     Hide details
                   </Button>
@@ -491,7 +554,7 @@ export function CardModal({ card, isOpen, onClose, onUpdate, boardId }: CardModa
                       <span className="text-sm text-muted-foreground">Loading comments...</span>
                     </div>
                   ) : comments.length === 0 ? (
-                    <div className="text-center py-4 text-sm text-gray-500">
+                    <div className="text-center py-4 text-sm text-muted-foreground">
                       No comments yet. Be the first to comment!
                     </div>
                   ) : (
@@ -507,14 +570,14 @@ export function CardModal({ card, isOpen, onClose, onUpdate, boardId }: CardModa
                             </AvatarFallback>
                           </Avatar>
                           <div className="flex-1">
-                            <div className="bg-white border rounded p-3">
+                            <div className="bg-card border border-border rounded p-3">
                               <div className="flex items-center justify-between mb-2">
-                                <span className="font-medium text-sm">
+                                <span className="font-medium text-sm text-foreground">
                                   {comment.author?.name || 'Unknown User'}
                                 </span>
-                                <span className="text-xs text-gray-500">{timeAgo}</span>
+                                <span className="text-xs text-muted-foreground">{timeAgo}</span>
                               </div>
-                              <p className="text-sm">{comment.text}</p>
+                              <p className="text-sm text-foreground">{comment.text}</p>
                             </div>
                           </div>
                         </div>
@@ -530,33 +593,40 @@ export function CardModal({ card, isOpen, onClose, onUpdate, boardId }: CardModa
               {/* Current Members */}
               {card.members && card.members.length > 0 && (
                 <div>
-                  <h3 className="font-semibold text-gray-900 mb-3">Members</h3>
+                  <h3 className="font-semibold text-foreground mb-3">Members</h3>
                   <div className="space-y-2">
                     {card.members.map((member, index) => (
-                      <div key={index} className="flex items-center justify-between bg-gray-50 rounded-lg p-2">
+                      <div key={index} className="flex items-center justify-between bg-muted rounded-lg p-2">
                         <div className="flex items-center space-x-2">
                           <Avatar className="w-6 h-6">
                             <AvatarFallback className="bg-blue-500 text-white text-xs">
                               {member.charAt(0).toUpperCase()}
                             </AvatarFallback>
                           </Avatar>
-                          <span className="text-sm font-medium">{member}</span>
+                          <span className="text-sm font-medium text-foreground">{member}</span>
                         </div>
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="h-6 w-6 p-0 hover:bg-gray-200"
+                          className="h-6 w-6 p-0 hover:bg-muted-foreground/20"
                           onClick={async () => {
                             try {
+                              const memberToRemove = card.members[index]
                               const newMembers = (card.members || []).filter((_, i) => i !== index)
+                              const newMemberIdMap = new Map(memberIdMap)
+                              newMemberIdMap.delete(memberToRemove)
+                              setMemberIdMap(newMemberIdMap)
+                              
                               const updatedCard = { ...card, members: newMembers }
                               
                               // Update UI immediately
                               onUpdate?.(updatedCard)
                               
                               // Save to backend
+                              const memberIds = newMembers.map(m => newMemberIdMap.get(m) || '').filter(id => id)
                               await apiClient.updateCard(card.id, {
-                                members: newMembers
+                                members: newMembers,
+                                _memberIds: memberIds
                               })
                               toast.success('Member removed successfully!')
                             } catch (error) {
@@ -576,7 +646,7 @@ export function CardModal({ card, isOpen, onClose, onUpdate, boardId }: CardModa
               )}
 
               <div>
-                <h3 className="font-semibold text-gray-900 mb-3">Add to card</h3>
+                <h3 className="font-semibold text-foreground mb-3">Add to card</h3>
                 <div className="space-y-2">
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
@@ -588,7 +658,7 @@ export function CardModal({ card, isOpen, onClose, onUpdate, boardId }: CardModa
                     <DropdownMenuContent className="w-56">
                       <div className="p-2">
                         <Input placeholder="Search members" className="mb-2" />
-                        <p className="text-xs font-medium text-gray-700 mb-2">Available members</p>
+                        <p className="text-xs font-medium text-foreground mb-2">Available members</p>
                         {isLoadingMembers ? (
                           <div className="flex items-center justify-center py-4">
                             <Loader2 className="w-4 h-4 animate-spin mr-2" />
@@ -599,50 +669,64 @@ export function CardModal({ card, isOpen, onClose, onUpdate, boardId }: CardModa
                             <p className="text-sm text-muted-foreground">No available members</p>
                           </div>
                         ) : (
-                          availableMembers.map((member) => (
-                            <DropdownMenuItem 
-                              key={member.id} 
-                              className="flex items-center space-x-2"
-                              onClick={async () => {
-                                try {
-                                  const currentMembers = card.members || []
-                                  const memberName = `${member.name} ${member.surname}`.trim()
-                                  if (!currentMembers.includes(memberName)) {
-                                    const newMembers = [...currentMembers, memberName]
-                                    const updatedCard = { ...card, members: newMembers }
-                                    
-                                    // Update UI immediately
-                                    onUpdate?.(updatedCard)
-                                    
-                                    // Save to backend
-                                    await apiClient.updateCard(card.id, {
-                                      members: newMembers
-                                    })
-                                    toast.success('Member added successfully!')
+                          availableMembers.map((member) => {
+                            const memberName = `${member.name} ${member.surname}`.trim()
+                            const currentMembers = card.members || []
+                            const isAlreadyMember = currentMembers.some((m: string) => 
+                              m === memberName || m === member.id || (typeof m === 'object' && m.id === member.id)
+                            )
+                            
+                            return (
+                              <DropdownMenuItem 
+                                key={member.id} 
+                                className="flex items-center space-x-2"
+                                disabled={isAlreadyMember}
+                                onClick={async () => {
+                                  try {
+                                    if (!isAlreadyMember) {
+                                      // Store both name (for display) and ID (for backend)
+                                      const newMembers = [...currentMembers, memberName]
+                                      const newMemberIdMap = new Map(memberIdMap)
+                                      newMemberIdMap.set(memberName, member.id)
+                                      setMemberIdMap(newMemberIdMap)
+                                      
+                                      const updatedCard = { ...card, members: newMembers }
+                                      
+                                      // Update UI immediately
+                                      onUpdate?.(updatedCard)
+                                      
+                                      // Save to backend - include member IDs for backend processing
+                                      const memberIds = newMembers.map(m => newMemberIdMap.get(m) || '')
+                                      await apiClient.updateCard(card.id, {
+                                        members: newMembers,
+                                        _memberIds: memberIds.filter(id => id) // Only include valid IDs
+                                      })
+                                      toast.success('Member added successfully!')
+                                    }
+                                  } catch (error) {
+                                    console.error('Failed to add member:', error)
+                                    toast.error('Failed to add member')
+                                    // Revert UI change on error
+                                    onUpdate?.(card)
                                   }
-                                } catch (error) {
-                                  console.error('Failed to add member:', error)
-                                  toast.error('Failed to add member')
-                                  // Revert UI change on error
-                                  onUpdate?.(card)
-                                }
-                              }}
-                            >
-                              <Avatar className="w-6 h-6">
-                                <AvatarFallback className="bg-blue-500 text-white text-xs">
-                                  {member.name?.charAt(0) || 'U'}
-                                </AvatarFallback>
-                              </Avatar>
-                              <div className="flex-1 min-w-0">
-                                <p className="text-sm font-medium truncate">
-                                  {member.name} {member.surname}
-                                </p>
-                                <p className="text-xs text-muted-foreground truncate">
-                                  {member.position || member.email}
-                                </p>
-                              </div>
-                            </DropdownMenuItem>
-                          ))
+                                }}
+                              >
+                                <Avatar className="w-6 h-6">
+                                  <AvatarFallback className="bg-blue-500 text-white text-xs">
+                                    {member.name?.charAt(0) || 'U'}
+                                  </AvatarFallback>
+                                </Avatar>
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm font-medium truncate">
+                                    {member.name} {member.surname}
+                                  </p>
+                                  <p className="text-xs text-muted-foreground truncate">
+                                    {member.position || member.email}
+                                  </p>
+                                </div>
+                              </DropdownMenuItem>
+                            )
+                          })
                         )}
                       </div>
                     </DropdownMenuContent>
@@ -691,7 +775,7 @@ export function CardModal({ card, isOpen, onClose, onUpdate, boardId }: CardModa
               </div>
 
               <div>
-                <h3 className="font-semibold text-gray-900 mb-3">Actions</h3>
+                <h3 className="font-semibold text-foreground mb-3">Actions</h3>
                 <div className="space-y-2">
                   <Button variant="ghost" className="w-full justify-start" size="sm">
                     <ArrowRight className="w-4 h-4 mr-2" />

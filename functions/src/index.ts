@@ -650,13 +650,14 @@ export const updateCard = onRequest(
         label.toLowerCase().includes('proje') || label.toLowerCase() === 'project'
       );
 
-      // If card has "proje" label and members are being updated, add board to employee's assigned boards
-      if (hasProjectLabel && updateData.members) {
+      // When members are being updated, always add them to the board
+      if (updateData.members) {
         const newMembers = updateData.members;
         const oldMembers = currentCardData?.members || [];
+        const memberIds = (updateData as any)._memberIds || [];
         
         // Find newly added members (handle both string names and objects)
-        const addedMembers = newMembers.filter((member: any) => {
+        const addedMembers = newMembers.filter((member: any, index: number) => {
           const memberName = typeof member === 'string' ? member : member.name || '';
           return !oldMembers.some((oldMember: any) => {
             const oldMemberName = typeof oldMember === 'string' ? oldMember : oldMember.name || '';
@@ -670,44 +671,62 @@ export const updateCard = onRequest(
           const boardData = boardDoc.data();
           
           // For each newly added member, find their user ID and add board to their assigned boards
-          for (const member of addedMembers) {
+          for (let i = 0; i < addedMembers.length; i++) {
+            const member = addedMembers[i];
             const memberName = typeof member === 'string' ? member : member.name || '';
             if (!memberName) continue;
             
-            // Find user by name (could be "John Doe" format)
-            const nameParts = memberName.split(' ');
-            const firstName = nameParts[0];
-            const lastName = nameParts.slice(1).join(' ');
+            let userId: string | null = null;
             
-            // Search for user by name
-            const usersSnapshot = await db.collection('users')
-              .where('name', '==', firstName)
-              .get();
+            // First, try to use member ID if provided
+            if (memberIds[i]) {
+              userId = memberIds[i];
+            } else {
+              // Fallback: Find user by name (could be "John Doe" format)
+              const nameParts = memberName.split(' ');
+              const firstName = nameParts[0];
+              const lastName = nameParts.slice(1).join(' ');
+              
+              // Search for user by name
+              const usersSnapshot = await db.collection('users')
+                .where('name', '==', firstName)
+                .get();
+              
+              for (const userDoc of usersSnapshot.docs) {
+                const userData = userDoc.data();
+                if ((lastName && userData.surname === lastName) || (!lastName && !userData.surname)) {
+                  userId = userDoc.id;
+                  break;
+                }
+              }
+            }
             
-            for (const userDoc of usersSnapshot.docs) {
-              const userData = userDoc.data();
-              if ((lastName && userData.surname === lastName) || (!lastName && !userData.surname)) {
-                // Found the user, add board to their assignedBoards if not already there
-                const userBoards = userData.assignedBoards || [];
+            if (userId) {
+              // Add board to user's assignedBoards if not already there
+              const userDoc = await db.collection('users').doc(userId).get();
+              if (userDoc.exists) {
+                const userData = userDoc.data();
+                const userBoards = userData?.assignedBoards || [];
                 if (!userBoards.includes(boardId)) {
-                  await db.collection('users').doc(userDoc.id).update({
+                  await db.collection('users').doc(userId).update({
                     assignedBoards: [...userBoards, boardId],
                     updatedAt: FieldValue.serverTimestamp()
                   });
-                  logger.info(`Added board ${boardId} to user ${userDoc.id} assignedBoards (${memberName})`);
+                  logger.info(`Added board ${boardId} to user ${userId} assignedBoards (${memberName})`);
                 }
-                
-                // Also add user to board's members if not already there
-                const boardMembers = boardData?.members || [];
-                if (!boardMembers.includes(userDoc.id)) {
-                  await db.collection('boards').doc(boardId).update({
-                    members: [...boardMembers, userDoc.id],
-                    updatedAt: FieldValue.serverTimestamp()
-                  });
-                  logger.info(`Added user ${userDoc.id} to board ${boardId} members`);
-                }
-                break;
               }
+              
+              // Also add user to board's members if not already there
+              const boardMembers = boardData?.members || [];
+              if (!boardMembers.includes(userId)) {
+                await db.collection('boards').doc(boardId).update({
+                  members: [...boardMembers, userId],
+                  updatedAt: FieldValue.serverTimestamp()
+                });
+                logger.info(`Added user ${userId} to board ${boardId} members`);
+              }
+            } else {
+              logger.warn(`Could not find user for member: ${memberName}`);
             }
           }
         }

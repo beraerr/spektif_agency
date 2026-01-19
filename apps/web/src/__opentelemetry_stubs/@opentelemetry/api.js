@@ -53,6 +53,8 @@ const stub = {
     warn: noop,
     error: noop,
   },
+  // CRITICAL: Export createContextKey at top level - Next.js calls api.createContextKey() directly
+  createContextKey: (name) => Symbol(name || 'context-key'),
 }
 
 // CommonJS export
