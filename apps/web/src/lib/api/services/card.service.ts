@@ -2,7 +2,7 @@
  * Card API Service - Handles card operations
  */
 import { BaseApiService } from './base-api'
-import type { Card, CreateCardDto, UpdateCardDto } from '@/types'
+import type { Card, CreateCardDto, UpdateCardDto, Comment } from '@/types'
 
 export class CardService extends BaseApiService {
   async getCards(filters?: {

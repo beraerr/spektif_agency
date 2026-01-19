@@ -39,7 +39,7 @@ import { AttachmentModal } from './attachment-modal'
 import { ChecklistManager } from './checklist-manager'
 import { apiClient } from '@/lib/api'
 import { cardService } from '@/lib/api/services/card.service'
-import { Comment } from '@/types'
+import type { Comment } from '@/types/board'
 import { toast } from 'sonner'
 
 interface CardModalProps {

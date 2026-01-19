@@ -309,7 +309,9 @@ export function useBoard(boardId: string) {
 
     try {
       // Optimistically update the UI immediately
-      setBoard(prev => prev ? { ...prev, ...data } : null)
+      // Note: members as string[] will be handled by server response
+      const { members, ...restData } = data
+      setBoard(prev => prev ? { ...prev, ...restData } : null)
       
       // Clear cache to ensure fresh data on next fetch
       clearCache()

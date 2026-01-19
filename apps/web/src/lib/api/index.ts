@@ -160,7 +160,7 @@ export const apiClient = {
 // Legacy compatibility - Keep old ApiClient class for gradual migration
 // TODO: Remove after all components are migrated
 import { BaseApiService } from './services/base-api'
-import { cache, cacheKeys, cacheTTL } from './cache'
+import { cache, cacheKeys, cacheTTL } from '../cache'
 
 class LegacyApiClient extends BaseApiService {
   // Keep methods for backwards compatibility

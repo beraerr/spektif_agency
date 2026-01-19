@@ -53,7 +53,7 @@ class CacheManager {
   // Invalidate cache entries that match a pattern
   invalidatePattern(pattern: string): void {
     const regex = new RegExp(pattern);
-    for (const key of this.cache.keys()) {
+    for (const key of Array.from(this.cache.keys())) {
       if (regex.test(key)) {
         this.cache.delete(key);
       }
@@ -66,7 +66,7 @@ class CacheManager {
     let valid = 0;
     let expired = 0;
 
-    for (const item of this.cache.values()) {
+    for (const item of Array.from(this.cache.values())) {
       if (now - item.timestamp > item.ttl) {
         expired++;
       } else {

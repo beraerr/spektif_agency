@@ -1,0 +1,6 @@
+{
+  "name": "@opentelemetry/api",
+  "version": "0.0.0-stub",
+  "main": "../api.js",
+  "types": "../api.d.ts"
+}

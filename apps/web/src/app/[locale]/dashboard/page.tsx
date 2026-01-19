@@ -1018,7 +1018,7 @@ function MembersView({ session }: { session: any }) {
   const [members, setMembers] = useState<Member[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [editingMember, setEditingMember] = useState<string | null>(null)
-  const [editForm, setEditForm] = useState<Partial<Member>>({})
+  const [editForm, setEditForm] = useState<Partial<Member & { password?: string }>>({})
 
   // Use hardcoded organization ID since session doesn't have org info
   const organizationId = 'spektif'

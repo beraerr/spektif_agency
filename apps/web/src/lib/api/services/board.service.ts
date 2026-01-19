@@ -8,7 +8,7 @@ import type { Board, CreateBoardDto, UpdateBoardDto } from '@/types'
 export class BoardService extends BaseApiService {
   async getBoards(userId: string, role?: string, clientId?: string): Promise<Board[]> {
     const cacheKey = cacheKeys.boards(userId)
-    const cached = cache.get(cacheKey)
+    const cached = cache.get<Board[]>(cacheKey)
     if (cached) {
       return cached
     }
@@ -24,7 +24,7 @@ export class BoardService extends BaseApiService {
 
   async getBoard(boardId: string): Promise<Board> {
     const cacheKey = cacheKeys.board(boardId)
-    const cached = cache.get(cacheKey)
+    const cached = cache.get<Board>(cacheKey)
     if (cached) {
       return cached
     }
