@@ -610,7 +610,8 @@ export function CardModal({ card, isOpen, onClose, onUpdate, boardId }: CardModa
                           className="h-6 w-6 p-0 hover:bg-muted-foreground/20"
                           onClick={async () => {
                             try {
-                              const memberToRemove = card.members[index]
+                              const memberToRemove = card.members?.[index]
+                              if (!memberToRemove) return
                               const newMembers = (card.members || []).filter((_, i) => i !== index)
                               const newMemberIdMap = new Map(memberIdMap)
                               newMemberIdMap.delete(memberToRemove)
@@ -622,10 +623,8 @@ export function CardModal({ card, isOpen, onClose, onUpdate, boardId }: CardModa
                               onUpdate?.(updatedCard)
                               
                               // Save to backend
-                              const memberIds = newMembers.map(m => newMemberIdMap.get(m) || '').filter(id => id)
                               await apiClient.updateCard(card.id, {
-                                members: newMembers,
-                                _memberIds: memberIds
+                                members: newMembers
                               })
                               toast.success('Member removed successfully!')
                             } catch (error) {
@@ -672,7 +671,7 @@ export function CardModal({ card, isOpen, onClose, onUpdate, boardId }: CardModa
                             const memberName = `${member.name} ${member.surname}`.trim()
                             const currentMembers = card.members || []
                             const isAlreadyMember = currentMembers.some((m: string) => 
-                              m === memberName || m === member.id || (typeof m === 'object' && m.id === member.id)
+                              m === memberName || m === member.id
                             )
                             
                             return (
@@ -694,11 +693,9 @@ export function CardModal({ card, isOpen, onClose, onUpdate, boardId }: CardModa
                                       // Update UI immediately
                                       onUpdate?.(updatedCard)
                                       
-                                      // Save to backend - include member IDs for backend processing
-                                      const memberIds = newMembers.map(m => newMemberIdMap.get(m) || '')
+                                      // Save to backend
                                       await apiClient.updateCard(card.id, {
-                                        members: newMembers,
-                                        _memberIds: memberIds.filter(id => id) // Only include valid IDs
+                                        members: newMembers
                                       })
                                       toast.success('Member added successfully!')
                                     }
